@@ -3,7 +3,7 @@ Main Routes Module
 Defines the main page routes for the application
 """
 
-from flask import Blueprint, render_template, redirect, url_for, make_response, flash
+from flask import Blueprint, render_template, redirect, url_for, make_response, flash, jsonify
 from flask_login import login_required, current_user
 from models.saving import Saving
 from models.expense import Expense
@@ -240,4 +240,15 @@ def ai_admin_dashboard():
         flash('You do not have permission to access this page.', 'error')
         return redirect(url_for('main.home'))
     
-    return render_template('admin/ai_dashboard.html') 
+    return render_template('admin/ai_dashboard.html')
+
+
+@main.route('/health')
+def health_check():
+    """Health check endpoint for Docker and monitoring systems"""
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.utcnow().isoformat(),
+        'service': 'finance-app',
+        'version': '1.0.0'
+    }), 200 

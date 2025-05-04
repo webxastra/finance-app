@@ -1,25 +1,42 @@
 version: '3.8'
 
 services:
-  web:
+  finance-app:
     build: .
+    container_name: finance-app-web
     ports:
       - "5000:5000"
     volumes:
       - ./instance:/app/instance
+      - ./static:/app/static  # For persistent static files
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-financeapp}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@finance-app-db:5432/${DB_NAME:-financeapp}
     depends_on:
-      - db
+      finance-app-db:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - finance-app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  db:
+  finance-app-db:
     image: postgres:14
+    container_name: finance-app-db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - finance-app-postgres-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
@@ -27,6 +44,24 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
+    networks:
+      - finance-app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  finance-app-network:
+    driver: bridge
 
 volumes:
-  postgres_data: 
+  finance-app-postgres-data:
+    name: finance-app-postgres-data 
