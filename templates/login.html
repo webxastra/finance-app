@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}Login - FinancePro{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div style="flex: 2; background-image: url('{{ url_for('static', filename='images/money-background.jpg') }}'); background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center;">
+        <div style="max-width: 600px; padding: 40px; color: white; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);">
+            <h1 style="font-size: 48px; margin-bottom: 20px;">Welcome to FinancePro</h1>
+            <p style="font-size: 20px; line-height: 1.6;">Manage your finances with ease, track expenses, and plan your financial future all in one place.</p>
+        </div>
+    </div>
+    <div class="login-form-container">
+        <div class="login-form">
+            <h1>LOGIN</h1>
+            <form action="{{ url_for('auth.login') }}" method="post">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px; display: flex; align-items: center;">
+                    <input type="checkbox" id="ai-module-toggle" name="ai_module" style="margin-right: 8px;">
+                    <label for="ai-module-toggle" style="margin: 0; font-size: 15px; cursor: pointer;">AI Module</label>
+                </div>
+                <button type="submit" class="login-button">Sign In</button>
+            </form>
+            <script src="{{ url_for('static', filename='js/login_ai_toggle.js') }}"></script>
+            <div class="auth-links-text">
+                <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

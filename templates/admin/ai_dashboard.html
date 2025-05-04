@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Admin Dashboard - Finance App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <!-- Added new Chart.js plugins for more visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        /* Enhanced dashboard styles */
+        .advanced-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .model-architecture {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .feature-importance-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .feature-bar {
+            height: 8px;
+            background: linear-gradient(to right, #6366F1, #8B5CF6);
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+        
+        .confusion-matrix {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .confusion-matrix table {
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        .confusion-matrix th, .confusion-matrix td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            text-align: center;
+        }
+        
+        .confusion-matrix th {
+            background-color: #f5f5f5;
+        }
+        
+        .confusion-matrix td.diagonal {
+            background-color: rgba(99, 102, 241, 0.2);
+            font-weight: bold;
+        }
+        
+        .metrics-card {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        
+        .metrics-card h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        
+        .metric-item {
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-top: 4px;
+        }
+        
+        .data-distribution {
+            margin-top: 20px;
+        }
+        
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        
+        .tab-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab-item.active {
+            border-bottom: 2px solid #6366F1;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .code-block {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 250px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+        
+        .model-params {
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .param-name {
+            color: #6366F1;
+            font-weight: bold;
+        }
+        
+        .learning-curve {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-robot"></i> AI Admin</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active" data-section="overview"><i class="fas fa-chart-pie"></i> Overview</li>
+                    <li data-section="model-info"><i class="fas fa-brain"></i> Model Info</li>
+                    <li data-section="advanced-analytics"><i class="fas fa-microscope"></i> Advanced Analytics</li>
+                    <li data-section="training-data"><i class="fas fa-database"></i> Training Data</li>
+                    <li data-section="corrections"><i class="fas fa-edit"></i> Corrections</li>
+                    <li data-section="training"><i class="fas fa-cogs"></i> Training</li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="{{ url_for('main.home') }}"><i class="fas fa-home"></i> Main Dashboard</a>
+                <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="dashboard-header">
+                <div class="user-welcome">
+                    <h1>AI Management Dashboard</h1>
+                    <p>Welcome, {{ current_user.username }}</p>
+                </div>
+                <div class="header-actions">
+                    <span class="date-time" id="current-datetime"></span>
+                </div>
+            </header>
+
+            <!-- Overview Section -->
+            <section id="overview" class="dashboard-section active">
+                <div class="section-header">
+                    <h2>AI System Overview</h2>
+                    <button id="refresh-stats" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+                </div>
+                
+                <div class="stats-container">
+                    <div class="stats-card">
+                        <div class="stats-icon"><i class="fas fa-tag"></i></div>
+                        <div class="stats-info">
+                            <h3>Model Version</h3>
+                            <p id="model-version">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-icon"><i class="fas fa-bullseye"></i></div>
+                        <div class="stats-info">
+                            <h3>Accuracy</h3>
+                            <p id="model-accuracy">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-icon"><i class="fas fa-edit"></i></div>
+                        <div class="stats-info">
+                            <h3>Total Corrections</h3>
+                            <p id="total-corrections">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stats-info">
+                            <h3>Applied Corrections</h3>
+                            <p id="applied-corrections">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="chart-container">
+                        <h3>Corrections by Category</h3>
+                        <canvas id="category-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Training History</h3>
+                        <canvas id="training-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- New section: Performance Summary -->
+                <div class="advanced-section">
+                    <h3><i class="fas fa-tachometer-alt"></i> Performance Summary</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">F1 Score</span>
+                            <span class="metric-value" id="f1-score">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Precision</span>
+                            <span class="metric-value" id="precision">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Recall</span>
+                            <span class="metric-value" id="recall">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Training Time</span>
+                            <span class="metric-value" id="training-time">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Model Info Section -->
+            <section id="model-info" class="dashboard-section">
+                <div class="section-header">
+                    <h2>Model Information</h2>
+                </div>
+                
+                <div class="model-details">
+                    <div class="model-card">
+                        <h3>Current Model Details</h3>
+                        <table class="model-info-table">
+                            <tr>
+                                <th>Version:</th>
+                                <td id="info-version">Loading...</td>
+                            </tr>
+                            <tr>
+                                <th>Last Trained:</th>
+                                <td id="info-last-trained">Loading...</td>
+                            </tr>
+                            <tr>
+                                <th>Accuracy:</th>
+                                <td id="info-accuracy">Loading...</td>
+                            </tr>
+                            <tr>
+                                <th>Corrections Applied:</th>
+                                <td id="info-corrections-applied">Loading...</td>
+                            </tr>
+                            <tr>
+                                <th colspan="2" style="text-align:right;">
+                                    <button id="reset-model-btn" class="btn btn-outline" style="margin-right:7px;"><i class="fas fa-undo"></i> Reset Model</button>
+                                    <button id="download-model-btn" class="btn btn-outline" style="margin-right:7px;"><i class="fas fa-download"></i> Download Model</button>
+                                    <button id="export-corrections-btn" class="btn btn-outline"><i class="fas fa-file-csv"></i> Export Corrections</button>
+                                </th>
+                            </tr>
+                            <tr>
+                                <th>Training Events:</th>
+                                <td id="info-training-events">Loading...</td>
+                            </tr>
+                            <tr>
+                                <th>Model Type:</th>
+                                <td id="model-type">RandomForest Classifier</td>
+                            </tr>
+                            <tr>
+                                <th>Feature Count:</th>
+                                <td id="feature-count">Loading...</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="model-card">
+                        <h3>Supported Categories</h3>
+                        <div id="category-list" class="category-tags">
+                            <span class="loading">Loading categories...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- New model architecture visualization -->
+                <div class="model-architecture">
+                    <h3>Model Architecture</h3>
+                    <div class="tab-nav">
+                        <div class="tab-item active" data-tab="architecture-visual">Visual</div>
+                        <div class="tab-item" data-tab="architecture-params">Parameters</div>
+                    </div>
+                    
+                    <div class="tab-content active" id="architecture-visual">
+                        <div style="width:100%; height:200px; position:relative;">
+                            <!-- Model architecture diagram will be rendered here -->
+                            <canvas id="architecture-diagram"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="architecture-params">
+                        <div class="model-params">
+                            <div><span class="param-name">vectorizer:</span> TfidfVectorizer(max_features=3000, min_df=2, max_df=0.9, ngram_range=(1,3))</div>
+                            <div><span class="param-name">classifier:</span> RandomForestClassifier(n_estimators=200, class_weight='balanced')</div>
+                            <div><span class="param-name">preprocessing:</span> Custom text normalization + NLTK tokenization</div>
+                            <div><span class="param-name">feature_selection:</span> TF-IDF weighting with sublinear scaling</div>
+                            <div><span class="param-name">n_estimators:</span> 200</div>
+                            <div><span class="param-name">max_depth:</span> None (unlimited)</div>
+                            <div><span class="param-name">min_samples_split:</span> 2</div>
+                            <div><span class="param-name">n_jobs:</span> -1 (all cores)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top features visualization -->
+                <div class="advanced-section">
+                    <h3>Top Features by Category</h3>
+                    <div class="tab-nav" id="category-tabs">
+                        <!-- Category tabs will be dynamically inserted here -->
+                        <div class="tab-item active" data-category="all">All Categories</div>
+                    </div>
+                    
+                    <div class="feature-importance-list" id="feature-importance-list">
+                        <!-- Feature importances will be dynamically inserted here -->
+                        <div>Loading feature importances...</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- NEW: Advanced Analytics Section -->
+            <section id="advanced-analytics" class="dashboard-section">
+                <div class="section-header">
+                    <h2>Advanced Analytics</h2>
+                </div>
+                
+                <div class="metrics-card">
+                    <h3>Model Performance Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">Accuracy</span>
+                            <span class="metric-value" id="adv-accuracy">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">F1 Score (Weighted)</span>
+                            <span class="metric-value" id="adv-f1">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Precision (Weighted)</span>
+                            <span class="metric-value" id="adv-precision">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Recall (Weighted)</span>
+                            <span class="metric-value" id="adv-recall">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Support (Total)</span>
+                            <span class="metric-value" id="adv-support">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Training Samples</span>
+                            <span class="metric-value" id="adv-train-samples">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Test Samples</span>
+                            <span class="metric-value" id="adv-test-samples">Loading...</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Classes</span>
+                            <span class="metric-value" id="adv-classes">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="chart-container">
+                        <h3>Confusion Matrix</h3>
+                        <div class="confusion-matrix" id="confusion-matrix">
+                            <p>Loading confusion matrix...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Per-Category Performance</h3>
+                        <canvas id="category-performance-chart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="learning-curve">
+                    <h3>Learning Curve</h3>
+                    <canvas id="learning-curve-chart"></canvas>
+                    <p class="description">This chart shows how model accuracy improves with more training data.</p>
+                </div>
+                
+                <div class="advanced-section">
+                    <h3>Model Interpretability</h3>
+                    <div class="row">
+                        <div class="chart-container">
+                            <h4>Feature Importance Distribution</h4>
+                            <canvas id="feature-importance-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h4>Classification Report</h4>
+                            <div class="code-block" id="classification-report">Loading report...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- NEW: Training Data Section -->
+            <section id="training-data" class="dashboard-section">
+                <div class="section-header">
+                    <h2>Training Data Analysis</h2>
+                </div>
+                
+                <div class="data-distribution">
+                    <h3>Category Distribution</h3>
+                    <canvas id="training-category-distribution"></canvas>
+                </div>
+                
+                <div class="row">
+                    <div class="chart-container">
+                        <h3>Data Sources</h3>
+                        <canvas id="data-sources-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Training Data Growth</h3>
+                        <canvas id="data-growth-chart"></canvas>
+                        <p class="description">Shows the cumulative growth of training data over time.</p>
+                    </div>
+                </div>
+                
+                <div class="advanced-section">
+                    <h3>Training Examples</h3>
+                    <div class="tab-nav">
+                        <div class="tab-item active" data-tab="default-examples">Default Examples</div>
+                        <div class="tab-item" data-tab="user-corrections">User Corrections</div>
+                        <div class="tab-item" data-tab="synthetic-examples">Synthetic Examples</div>
+                    </div>
+                    
+                    <div class="tab-content active" id="default-examples">
+                        <div class="table-container">
+                            <table class="corrections-table">
+                                <thead>
+                                    <tr>
+                                        <th>Example</th>
+                                        <th>Category</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="default-examples-body">
+                                    <tr>
+                                        <td colspan="2" class="table-loading">Loading examples...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="user-corrections">
+                        <div class="table-container">
+                            <table class="corrections-table">
+                                <thead>
+                                    <tr>
+                                        <th>Example</th>
+                                        <th>Original Prediction</th>
+                                        <th>Corrected Category</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="user-corrections-body">
+                                    <tr>
+                                        <td colspan="3" class="table-loading">Loading user corrections...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="synthetic-examples">
+                        <div class="table-container">
+                            <table class="corrections-table">
+                                <thead>
+                                    <tr>
+                                        <th>Example</th>
+                                        <th>Category</th>
+                                        <th>Generation Method</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="synthetic-examples-body">
+                                    <tr>
+                                        <td colspan="3" class="table-loading">Loading synthetic examples...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="advanced-section">
+                    <h3>Feature Extraction Insights</h3>
+                    <div class="row">
+                        <div class="chart-container">
+                            <h4>N-gram Distribution</h4>
+                            <canvas id="ngram-distribution-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h4>Term Frequency</h4>
+                            <canvas id="term-frequency-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Corrections Section (Existing, unchanged) -->
+            <section id="corrections" class="dashboard-section">
+                <div class="section-header">
+                    <h2>User Corrections</h2>
+                    <div class="header-actions">
+                        <button id="refresh-corrections" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="corrections-stats">
+                    <div class="stats-pill">
+                        <span class="stats-label">Total:</span>
+                        <span id="corrections-total" class="stats-value">0</span>
+                    </div>
+                    <div class="stats-pill">
+                        <span class="stats-label">Applied:</span>
+                        <span id="corrections-applied" class="stats-value">0</span>
+                    </div>
+                    <div class="stats-pill">
+                        <span class="stats-label">Pending:</span>
+                        <span id="corrections-pending" class="stats-value">0</span>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="corrections-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Description</th>
+                                <th>Predicted</th>
+                                <th>Corrected</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corrections-table-body">
+                            <tr>
+                                <td colspan="7" class="table-loading">Loading corrections data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Training Section (Existing, unchanged) -->
+            <section id="training" class="dashboard-section">
+                <div class="section-header">
+                    <h2>Model Training</h2>
+                </div>
+                
+                <div class="training-card">
+                    <div class="training-summary">
+                        <h3>Training Status</h3>
+                        <div class="training-stats">
+                            <div class="training-stat">
+                                <span class="stat-label">Unused Corrections:</span>
+                                <span id="unused-corrections" class="stat-value">Loading...</span>
+                            </div>
+                            <div class="training-stat">
+                                <span class="stat-label">Last Training:</span>
+                                <span id="last-training" class="stat-value">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="training-actions">
+                        <div class="action-group">
+                            <label for="max-corrections">Max Corrections to Use:</label>
+                            <input type="number" id="max-corrections" min="1" value="50" class="input-field">
+                        </div>
+                        <button id="start-training" class="btn btn-primary">
+                            <i class="fas fa-cogs"></i> Retrain Model
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="training-history">
+                    <h3>Training History</h3>
+                    <div class="training-timeline" id="training-timeline">
+                        <div class="timeline-loading">Loading training history...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-message">Processing...</div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
+
+    <!-- NEW MODAL IMPLEMENTATION -->
+    <div id="new-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 2000;">
+        <div style="position: relative; width: 500px; max-width: 90%; margin: 10% auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);">
+            <h3 id="new-modal-title" style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Modal Title</h3>
+            <div id="new-modal-body" style="margin: 20px 0;">
+                Modal content here
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #eee; padding-top: 15px;">
+                <button id="new-modal-cancel" style="padding: 8px 15px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button id="new-modal-confirm" style="padding: 8px 15px; border: none; background: #4a6cf7; color: white; border-radius: 4px; cursor: pointer;">Confirm</button>
+            </div>
+            <button id="new-modal-close" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px;">&times;</button>
+        </div>
+    </div>
+
+    <!-- Keep the original modal (hidden) for compatibility with existing JS -->
+    <div id="modal-container" class="modal-container hidden" style="display: none !important;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal Title</h3>
+                <button id="modal-close" class="modal-close">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body">
+                Modal content goes here
+            </div>
+            <div class="modal-footer">
+                <button id="modal-cancel" class="btn btn-outline">Cancel</button>
+                <button id="modal-confirm" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
+    
+    <!-- NEW DIRECT SCRIPT SOLUTION -->
+    <script>
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const newModal = document.getElementById('new-modal');
+            const newModalTitle = document.getElementById('new-modal-title');
+            const newModalBody = document.getElementById('new-modal-body');
+            const newModalConfirm = document.getElementById('new-modal-confirm');
+            const newModalCancel = document.getElementById('new-modal-cancel');
+            const newModalClose = document.getElementById('new-modal-close');
+            const startTrainingBtn = document.getElementById('start-training');
+            
+            // Close modal function
+            function closeModal() {
+                newModal.style.display = 'none';
+            }
+            
+            // Show modal function
+            function showModal(title, content, callback) {
+                newModalTitle.textContent = title;
+                newModalBody.innerHTML = content;
+                
+                // Clear any previous event listeners
+                newModalConfirm.replaceWith(newModalConfirm.cloneNode(true));
+                newModalCancel.replaceWith(newModalCancel.cloneNode(true));
+                newModalClose.replaceWith(newModalClose.cloneNode(true));
+                
+                // Get fresh references
+                const freshConfirm = document.getElementById('new-modal-confirm');
+                const freshCancel = document.getElementById('new-modal-cancel');
+                const freshClose = document.getElementById('new-modal-close');
+                
+                // Add new event listeners
+                freshCancel.addEventListener('click', closeModal);
+                freshClose.addEventListener('click', closeModal);
+                
+                if (callback) {
+                    freshConfirm.addEventListener('click', function() {
+                        closeModal();
+                        callback();
+                    });
+                } else {
+                    freshConfirm.addEventListener('click', closeModal);
+                }
+                
+                // Show the modal
+                newModal.style.display = 'block';
+            }
+            
+            // Replace the original showRetrainConfirmation function
+            if (startTrainingBtn) {
+                startTrainingBtn.addEventListener('click', function() {
+                    const maxCorrections = document.getElementById('max-corrections').value || 50;
+                    
+                    showModal(
+                        'Retrain AI Model',
+                        `
+                        <p>Are you sure you want to retrain the AI model?</p>
+                        <p>This will use up to <strong>${maxCorrections}</strong> unused corrections for training.</p>
+                        <p>The process may take a few moments to complete.</p>
+                        `,
+                        function() {
+                            console.log('Retraining with', maxCorrections, 'corrections');
+                            // Direct call to the retrainModel function from admin_dashboard.js
+                            window.retrainModel(parseInt(maxCorrections));
+                        }
+                    );
+                });
+            }
+            
+            // Add tab navigation for new sections
+            document.querySelectorAll('.tab-nav .tab-item').forEach(tabItem => {
+                tabItem.addEventListener('click', function() {
+                    // Get the target tab
+                    const target = this.getAttribute('data-tab');
+                    if (target) {
+                        // Remove active class from all tabs in this nav
+                        this.parentNode.querySelectorAll('.tab-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        
+                        // Add active class to clicked tab
+                        this.classList.add('active');
+                        
+                        // Hide all tab content sections
+                        const tabContents = document.querySelectorAll('.tab-content');
+                        tabContents.forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        
+                        // Show the target tab content
+                        const targetContent = document.getElementById(target);
+                        if (targetContent) {
+                            targetContent.classList.add('active');
+                        }
+                    }
+                    
+                    // Handle category tabs specially
+                    const category = this.getAttribute('data-category');
+                    if (category) {
+                        // Update feature importance list for this category
+                        updateFeatureImportanceForCategory(category);
+                    }
+                });
+            });
+            
+            // Function to update feature importance list
+            function updateFeatureImportanceForCategory(category) {
+                // This will be implemented in the extended admin_dashboard.js
+                console.log('Updating features for category:', category);
+                
+                // For demonstration purposes
+                const featureList = document.getElementById('feature-importance-list');
+                if (featureList) {
+                    if (category === 'all') {
+                        featureList.innerHTML = `
+                            <div class="feature-item">
+                                <div>
+                                    <strong>grocery</strong> <span class="category-tag">Food & Dining</span>
+                                </div>
+                                <div>0.089</div>
+                            </div>
+                            <div class="feature-item">
+                                <div>
+                                    <strong>hotel</strong> <span class="category-tag">Travel</span>
+                                </div>
+                                <div>0.082</div>
+                            </div>
+                            <div class="feature-item">
+                                <div>
+                                    <strong>insurance</strong> <span class="category-tag">Insurance</span>
+                                </div>
+                                <div>0.078</div>
+                            </div>
+                            <div class="feature-item">
+                                <div>
+                                    <strong>premium</strong> <span class="category-tag">Insurance</span>
+                                </div>
+                                <div>0.071</div>
+                            </div>
+                            <div class="feature-item">
+                                <div>
+                                    <strong>rent</strong> <span class="category-tag">Housing</span>
+                                </div>
+                                <div>0.069</div>
+                            </div>
+                        `;
+                    } else {
+                        // Example for Food & Dining
+                        featureList.innerHTML = `
+                            <div class="feature-item">
+                                <div><strong>grocery</strong></div>
+                                <div>0.186</div>
+                            </div>
+                            <div class="feature-item">
+                                <div><strong>restaurant</strong></div>
+                                <div>0.154</div>
+                            </div>
+                            <div class="feature-item">
+                                <div><strong>food</strong></div>
+                                <div>0.132</div>
+                            </div>
+                            <div class="feature-item">
+                                <div><strong>meal</strong></div>
+                                <div>0.098</div>
+                            </div>
+                            <div class="feature-item">
+                                <div><strong>grocery shopping</strong></div>
+                                <div>0.087</div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            // Initialize the architecture diagram
+            function initArchitectureDiagram() {
+                const canvas = document.getElementById('architecture-diagram');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    // Simple visual representation of the model pipeline
+                    // This would be enhanced in the full implementation
+                    
+                    const architectureColors = {
+                        bg: '#f9f9f9',
+                        border: '#ddd',
+                        text: '#333',
+                        arrow: '#6366F1',
+                        preprocessing: '#8B5CF6',
+                        vectorization: '#EC4899',
+                        model: '#10B981'
+                    };
+                    
+                    // This is just a placeholder - you'd implement real drawing code here
+                    ctx.fillStyle = architectureColors.bg;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = architectureColors.text;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Text Preprocessing → Vectorization → RandomForest Model', canvas.width/2, canvas.height/2);
+                }
+            }
+            
+            // Call this function after the page loads
+            window.addEventListener('load', function() {
+                // Initialize the new visualizations
+                initArchitectureDiagram();
+                
+                // Initialize the default feature importance view
+                updateFeatureImportanceForCategory('all');
+            });
+        });
+    </script>
+</body>
+</html> 

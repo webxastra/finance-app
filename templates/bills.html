@@ -1,0 +1,830 @@
+{% extends "layout.html" %}
+
+{% block title %}Bills Management - FinancePro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1><i class="fas fa-file-invoice-dollar"></i> Manage Your Bills</h1>
+    </div>
+
+    <!-- Loading spinner while data is being fetched -->
+    <div id="loading" class="data-message">
+        <div class="loading-spinner"></div>
+        Loading bill data...
+    </div>
+
+    <div id="billsContent" style="display: none;">
+        <div class="dashboard-section">
+            <div class="bill-summary-container">
+                <div class="bill-summary-card total-bills">
+                    <h3 class="summary-card-title">Total Bills</h3>
+                    <div class="summary-card-amount" id="totalBills">0</div>
+                </div>
+                <div class="bill-summary-card unpaid-bills">
+                    <h3 class="summary-card-title">Unpaid Bills</h3>
+                    <div class="summary-card-amount" id="unpaidBills">₹0</div>
+                </div>
+                <div class="bill-summary-card overdue-bills">
+                    <h3 class="summary-card-title">Overdue Bills</h3>
+                    <div class="summary-card-amount" id="overdueBills">0</div>
+                </div>
+                <div class="bill-summary-card upcoming-bills">
+                    <h3 class="summary-card-title">Upcoming Bills</h3>
+                    <div class="summary-card-amount" id="upcomingBills">0</div>
+                </div>
+            </div>
+            
+            <button id="addBillBtn" class="action-button">
+                <i class="fas fa-plus"></i> Add Bill
+            </button>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-clock"></i> Upcoming & Overdue Bills</h2>
+            <div id="alertBillsContainer" class="bills-container">
+                <p class="no-bills-message" id="noAlertBillsMessage">No upcoming or overdue bills.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-list-ul"></i> All Bills</h2>
+            
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label for="billStatusFilter" class="filter-label">Status:</label>
+                    <select id="billStatusFilter" class="filter-select">
+                        <option value="all">All Bills</option>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="upcoming">Upcoming</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="billCategoryFilter" class="filter-label">Category:</label>
+                    <select id="billCategoryFilter" class="filter-select">
+                        <option value="all">All Categories</option>
+                        <option value="electricity">Electricity</option>
+                        <option value="water">Water</option>
+                        <option value="rent">Rent</option>
+                        <option value="internet">Internet</option>
+                        <option value="phone">Phone</option>
+                        <option value="insurance">Insurance</option>
+                        <option value="subscription">Subscription</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="billsContainer" class="bills-container">
+                <p class="no-bills-message" id="noBillsMessage">No bills added yet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bill Payment Alert Modal -->
+<div id="billAlertModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2 class="modal-title"><i class="fas fa-exclamation-circle"></i> Upcoming Bills Alert</h2>
+        <div id="alertBillsList" class="alert-bills-list">
+            <!-- Alert bills will be listed here -->
+        </div>
+        <div class="modal-buttons">
+            <button type="button" id="closeBillAlertBtn" class="btn-cancel">Close</button>
+            <button type="button" id="viewAllBillsBtn" class="btn-primary">View All Bills</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Bill Modal -->
+<div id="billModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-file-invoice-dollar"></i> <span id="billModalAction">Add</span> Bill</h2>
+        <form id="billForm">
+            <input type="hidden" id="billId" name="billId" value="">
+            
+            <div class="form-group">
+                <label for="billName">Bill Name</label>
+                <input type="text" id="billName" name="name" placeholder="e.g., Electricity Bill" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="billCategory">Category</label>
+                <select id="billCategory" name="category" required>
+                    <option value="">Select Category</option>
+                    <option value="electricity">Electricity</option>
+                    <option value="water">Water</option>
+                    <option value="rent">Rent</option>
+                    <option value="internet">Internet</option>
+                    <option value="phone">Phone</option>
+                    <option value="insurance">Insurance</option>
+                    <option value="subscription">Subscription</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="otherCategoryGroup" style="display: none;">
+                <label for="otherCategory">Specify Category</label>
+                <input type="text" id="otherCategory" name="otherCategory" placeholder="Enter custom category">
+            </div>
+            
+            <div class="form-group">
+                <label for="billAmount">Amount (₹)</label>
+                <input type="number" id="billAmount" name="amount" placeholder="e.g., 1000" min="0" step="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="billDueDate">Due Date</label>
+                <input type="date" id="billDueDate" name="dueDate" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="billFrequency">Frequency</label>
+                <select id="billFrequency" name="frequency" required>
+                    <option value="one-time">One-time</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="billDescription">Description (Optional)</label>
+                <textarea id="billDescription" name="description" placeholder="Add any additional notes"></textarea>
+            </div>
+            
+            <div class="form-buttons">
+                <button type="button" id="cancelBillBtn" class="btn-cancel">Cancel</button>
+                <button type="submit" class="btn-add">Save Bill</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bill Payment Modal -->
+<div id="payBillModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal pay-close">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-money-bill-wave"></i> Pay Bill</h2>
+        <div id="payBillDetails" class="pay-bill-details">
+            <h3 id="payBillName">Bill Name</h3>
+            <div class="pay-bill-info">
+                <p><strong>Amount:</strong> <span id="payBillAmount">₹0</span></p>
+                <p><strong>Due Date:</strong> <span id="payBillDueDate">01/01/2023</span></p>
+            </div>
+        </div>
+        <div class="pay-bill-message">
+            <p>Paying this bill will mark it as paid and add it to your expenses.</p>
+            <p>If this is a recurring bill, a new bill will be automatically generated for the next billing cycle.</p>
+        </div>
+        <div class="form-buttons">
+            <button type="button" id="cancelPayBillBtn" class="btn-cancel">Cancel</button>
+            <button type="button" id="confirmPayBillBtn" class="btn-primary">Confirm Payment</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Bill Confirmation Modal -->
+<div id="deleteBillModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2 class="modal-title"><i class="fas fa-trash"></i> Delete Bill</h2>
+        <p>Are you sure you want to delete this bill? This action cannot be undone.</p>
+        <div class="form-buttons">
+            <button type="button" id="cancelDeleteBillBtn" class="btn-cancel">Cancel</button>
+            <button type="button" id="confirmDeleteBillBtn" class="btn-delete">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const loadingElement = document.getElementById('loading');
+        const billsContent = document.getElementById('billsContent');
+        const billsContainer = document.getElementById('billsContainer');
+        const alertBillsContainer = document.getElementById('alertBillsContainer');
+        const noBillsMessage = document.getElementById('noBillsMessage');
+        const noAlertBillsMessage = document.getElementById('noAlertBillsMessage');
+        const totalBillsElement = document.getElementById('totalBills');
+        const unpaidBillsElement = document.getElementById('unpaidBills');
+        const overdueBillsElement = document.getElementById('overdueBills');
+        const upcomingBillsElement = document.getElementById('upcomingBills');
+        
+        // Modals and buttons
+        const addBillBtn = document.getElementById('addBillBtn');
+        const billModal = document.getElementById('billModal');
+        const billAlertModal = document.getElementById('billAlertModal');
+        const payBillModal = document.getElementById('payBillModal');
+        const deleteBillModal = document.getElementById('deleteBillModal');
+        const closeBillAlertBtn = document.getElementById('closeBillAlertBtn');
+        const viewAllBillsBtn = document.getElementById('viewAllBillsBtn');
+        const cancelBillBtn = document.getElementById('cancelBillBtn');
+        const cancelPayBillBtn = document.getElementById('cancelPayBillBtn');
+        const confirmPayBillBtn = document.getElementById('confirmPayBillBtn');
+        const cancelDeleteBillBtn = document.getElementById('cancelDeleteBillBtn');
+        const confirmDeleteBillBtn = document.getElementById('confirmDeleteBillBtn');
+        const closeModalButtons = document.querySelectorAll('.close-modal');
+        
+        // Form elements
+        const billForm = document.getElementById('billForm');
+        const billModalAction = document.getElementById('billModalAction');
+        const billCategory = document.getElementById('billCategory');
+        const otherCategoryGroup = document.getElementById('otherCategoryGroup');
+        const otherCategory = document.getElementById('otherCategory');
+        
+        // Filters
+        const billStatusFilter = document.getElementById('billStatusFilter');
+        const billCategoryFilter = document.getElementById('billCategoryFilter');
+        
+        // Bill data arrays
+        let bills = [];
+        let upcomingBills = [];
+        let currentBillId = null;
+        
+        // Initialize the page
+        loadBillData();
+        
+        // Set default date to today
+        document.getElementById('billDueDate').valueAsDate = new Date();
+        
+        // Show category field for "other" selection
+        billCategory.addEventListener('change', function() {
+            if (this.value === 'other') {
+                otherCategoryGroup.style.display = 'block';
+                otherCategory.required = true;
+            } else {
+                otherCategoryGroup.style.display = 'none';
+                otherCategory.required = false;
+            }
+        });
+        
+        // Filter bills when filter changes
+        billStatusFilter.addEventListener('change', filterBills);
+        billCategoryFilter.addEventListener('change', filterBills);
+        
+        // Show modal when Add Bill button is clicked
+        addBillBtn.addEventListener('click', function() {
+            resetBillForm();
+            billModalAction.textContent = 'Add';
+            billModal.style.display = 'block';
+        });
+        
+        // Close modals
+        closeModalButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                billModal.style.display = 'none';
+                payBillModal.style.display = 'none';
+            });
+        });
+        
+        // Close bill alert modal
+        closeBillAlertBtn.addEventListener('click', function() {
+            billAlertModal.style.display = 'none';
+        });
+        
+        // View all bills button on alert modal
+        viewAllBillsBtn.addEventListener('click', function() {
+            billAlertModal.style.display = 'none';
+        });
+        
+        // Cancel buttons
+        cancelBillBtn.addEventListener('click', function() {
+            billModal.style.display = 'none';
+        });
+        
+        cancelPayBillBtn.addEventListener('click', function() {
+            payBillModal.style.display = 'none';
+        });
+        
+        cancelDeleteBillBtn.addEventListener('click', function() {
+            deleteBillModal.style.display = 'none';
+        });
+        
+        // Submit bill form
+        billForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            // Get form values
+            const billId = document.getElementById('billId').value;
+            const name = document.getElementById('billName').value;
+            let category = document.getElementById('billCategory').value;
+            if (category === 'other') {
+                category = document.getElementById('otherCategory').value;
+            }
+            const amount = parseFloat(document.getElementById('billAmount').value);
+            const dueDate = document.getElementById('billDueDate').value;
+            const frequency = document.getElementById('billFrequency').value;
+            const description = document.getElementById('billDescription').value;
+            
+            // Format due date from YYYY-MM-DD to ISO format
+            const dueDateObj = new Date(dueDate);
+            dueDateObj.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+            const dueDateIso = dueDateObj.toISOString();
+            
+            // Create data object
+            const data = {
+                name: name,
+                category: category,
+                amount: amount,
+                due_date: dueDateIso,
+                frequency: frequency,
+                description: description
+            };
+            
+            try {
+                let response;
+                
+                if (billId) {
+                    // Update existing bill
+                    response = await fetch(`/api/bills/${billId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // Create new bill
+                    response = await fetch('/api/bills', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                if (response.ok) {
+                    // Reload bills data
+                    loadBillData();
+                    
+                    // Hide modal
+                    billModal.style.display = 'none';
+                } else {
+                    const errorData = await response.json();
+                    alert('Error: ' + (errorData.error || 'Something went wrong'));
+                }
+            } catch (error) {
+                console.error('Error saving bill:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+        
+        // Confirm pay bill
+        confirmPayBillBtn.addEventListener('click', async function() {
+            if (!currentBillId) return;
+            
+            try {
+                const response = await fetch(`/api/bills/${currentBillId}/pay`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload bills data
+                    loadBillData();
+                    
+                    // Hide modal
+                    payBillModal.style.display = 'none';
+                } else {
+                    const errorData = await response.json();
+                    alert('Error: ' + (errorData.error || 'Something went wrong'));
+                }
+            } catch (error) {
+                console.error('Error paying bill:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+        
+        // Confirm delete bill
+        confirmDeleteBillBtn.addEventListener('click', async function() {
+            if (!currentBillId) return;
+            
+            try {
+                const response = await fetch(`/api/bills/${currentBillId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload bills data
+                    loadBillData();
+                    
+                    // Hide modal
+                    deleteBillModal.style.display = 'none';
+                } else {
+                    const errorData = await response.json();
+                    alert('Error: ' + (errorData.error || 'Something went wrong'));
+                }
+            } catch (error) {
+                console.error('Error deleting bill:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+        
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === billModal) {
+                billModal.style.display = 'none';
+            } else if (event.target === payBillModal) {
+                payBillModal.style.display = 'none';
+            } else if (event.target === deleteBillModal) {
+                deleteBillModal.style.display = 'none';
+            } else if (event.target === billAlertModal) {
+                billAlertModal.style.display = 'none';
+            }
+        });
+        
+        // Function to load bill data
+        async function loadBillData() {
+            try {
+                // Show loading
+                loadingElement.style.display = 'flex';
+                billsContent.style.display = 'none';
+                
+                // Get all bills
+                const response = await fetch('/api/bills');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bills');
+                }
+                
+                const data = await response.json();
+                bills = data.bills || [];
+                
+                // Get upcoming bills for alerts
+                const upcomingResponse = await fetch('/api/bills/upcoming');
+                
+                if (upcomingResponse.ok) {
+                    const upcomingData = await upcomingResponse.json();
+                    upcomingBills = upcomingData.upcoming_bills || [];
+                    
+                    // Show alert if there are upcoming bills
+                    if (upcomingBills.length > 0 && !localStorage.getItem('billAlertShown')) {
+                        showBillAlert(upcomingBills);
+                        localStorage.setItem('billAlertShown', new Date().toISOString());
+                    }
+                }
+                
+                // Update displays
+                updateBillsDisplay();
+                updateAlertBillsDisplay();
+                updateBillSummary();
+                
+                // Hide loading, show content
+                loadingElement.style.display = 'none';
+                billsContent.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading bill data:', error);
+                loadingElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                    <div>Error loading bill data. Please try refreshing the page.</div>
+                `;
+            }
+        }
+        
+        // Function to update bills display
+        function updateBillsDisplay() {
+            // Apply filters
+            const filteredBills = filterBillsByStatus(filterBillsByCategory(bills));
+            
+            // Clear container
+            billsContainer.innerHTML = '';
+            
+            if (filteredBills.length === 0) {
+                // Show no bills message
+                noBillsMessage.style.display = 'block';
+                billsContainer.appendChild(noBillsMessage);
+                return;
+            }
+            
+            // Hide no bills message
+            noBillsMessage.style.display = 'none';
+            
+            // Create bill cards
+            filteredBills.forEach(bill => {
+                const billCard = createBillCard(bill);
+                billsContainer.appendChild(billCard);
+            });
+        }
+        
+        // Function to update alert bills display
+        function updateAlertBillsDisplay() {
+            // Clear container
+            alertBillsContainer.innerHTML = '';
+            
+            // Filter upcoming and overdue bills
+            const alertBills = bills.filter(bill => !bill.is_paid && (bill.is_upcoming || bill.is_overdue));
+            
+            if (alertBills.length === 0) {
+                // Show no alert bills message
+                noAlertBillsMessage.style.display = 'block';
+                alertBillsContainer.appendChild(noAlertBillsMessage);
+                return;
+            }
+            
+            // Hide no alert bills message
+            noAlertBillsMessage.style.display = 'none';
+            
+            // Create bill cards
+            alertBills.forEach(bill => {
+                const billCard = createBillCard(bill);
+                alertBillsContainer.appendChild(billCard);
+            });
+        }
+        
+        // Function to update bill summary
+        function updateBillSummary() {
+            const totalBills = bills.length;
+            const unpaidAmount = bills
+                .filter(bill => !bill.is_paid)
+                .reduce((sum, bill) => sum + bill.amount, 0);
+            const overdueBills = bills.filter(bill => bill.is_overdue).length;
+            const upcomingBills = bills.filter(bill => bill.is_upcoming).length;
+            
+            totalBillsElement.textContent = totalBills;
+            unpaidBillsElement.textContent = '₹' + unpaidAmount.toFixed(2);
+            overdueBillsElement.textContent = overdueBills;
+            upcomingBillsElement.textContent = upcomingBills;
+        }
+        
+        // Function to show bill alert modal
+        function showBillAlert(bills) {
+            const alertBillsList = document.getElementById('alertBillsList');
+            alertBillsList.innerHTML = '';
+            
+            bills.forEach(bill => {
+                const billItem = document.createElement('div');
+                billItem.className = 'alert-bill-item';
+                
+                const dueDate = new Date(bill.due_date);
+                const formattedDate = dueDate.toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+                
+                billItem.innerHTML = `
+                    <h3>${bill.name}</h3>
+                    <div class="alert-bill-details">
+                        <span class="alert-bill-amount">₹${bill.amount.toFixed(2)}</span>
+                        <span class="alert-bill-date">Due: ${formattedDate}</span>
+                    </div>
+                `;
+                
+                alertBillsList.appendChild(billItem);
+            });
+            
+            billAlertModal.style.display = 'block';
+        }
+        
+        // Function to create bill card
+        function createBillCard(bill) {
+            const billCard = document.createElement('div');
+            billCard.className = 'bill-card';
+            billCard.dataset.id = bill.id;
+            
+            // Add status class
+            if (bill.is_paid) {
+                billCard.classList.add('paid');
+            } else if (bill.is_overdue) {
+                billCard.classList.add('overdue');
+            } else if (bill.is_upcoming) {
+                billCard.classList.add('upcoming');
+            }
+            
+            // Create bill header
+            const billHeader = document.createElement('div');
+            billHeader.className = 'bill-header';
+            
+            const billName = document.createElement('h3');
+            billName.className = 'bill-name';
+            billName.textContent = bill.name;
+            
+            const billCategory = document.createElement('div');
+            billCategory.className = 'bill-category';
+            billCategory.textContent = bill.category.charAt(0).toUpperCase() + bill.category.slice(1);
+            
+            billHeader.appendChild(billName);
+            billHeader.appendChild(billCategory);
+            
+            // Create bill amount
+            const billAmount = document.createElement('div');
+            billAmount.className = 'bill-amount';
+            billAmount.textContent = `₹${bill.amount.toFixed(2)}`;
+            
+            // Create bill details
+            const billDetails = document.createElement('div');
+            billDetails.className = 'bill-details';
+            
+            // Format date
+            const dueDate = new Date(bill.due_date);
+            const formattedDate = dueDate.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            
+            const billDate = document.createElement('div');
+            billDate.className = 'bill-date';
+            billDate.innerHTML = `<i class="fas fa-calendar-alt"></i> Due: ${formattedDate}`;
+            
+            const billFrequency = document.createElement('div');
+            billFrequency.className = 'bill-frequency';
+            billFrequency.innerHTML = `<i class="fas fa-sync-alt"></i> ${bill.frequency.charAt(0).toUpperCase() + bill.frequency.slice(1)}`;
+            
+            billDetails.appendChild(billDate);
+            billDetails.appendChild(billFrequency);
+            
+            // Create bill status
+            const billStatus = document.createElement('div');
+            billStatus.className = 'bill-status';
+            
+            if (bill.is_paid) {
+                billStatus.innerHTML = '<span class="status-paid"><i class="fas fa-check-circle"></i> Paid</span>';
+                if (bill.payment_date) {
+                    const paymentDate = new Date(bill.payment_date);
+                    const formattedPaymentDate = paymentDate.toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                    billStatus.innerHTML += `<span class="payment-date">Paid on: ${formattedPaymentDate}</span>`;
+                }
+            } else if (bill.is_overdue) {
+                billStatus.innerHTML = '<span class="status-overdue"><i class="fas fa-exclamation-circle"></i> Overdue</span>';
+            } else if (bill.is_upcoming) {
+                billStatus.innerHTML = '<span class="status-upcoming"><i class="fas fa-clock"></i> Upcoming</span>';
+            } else {
+                billStatus.innerHTML = '<span class="status-unpaid"><i class="fas fa-times-circle"></i> Unpaid</span>';
+            }
+            
+            // Create bill actions
+            const billActions = document.createElement('div');
+            billActions.className = 'bill-actions';
+            
+            if (!bill.is_paid) {
+                const payButton = document.createElement('button');
+                payButton.className = 'bill-action pay-bill';
+                payButton.innerHTML = '<i class="fas fa-money-bill-wave"></i>';
+                payButton.title = 'Pay Bill';
+                payButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showPayBillModal(bill);
+                });
+                billActions.appendChild(payButton);
+            }
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'bill-action edit-bill';
+            editButton.innerHTML = '<i class="fas fa-edit"></i>';
+            editButton.title = 'Edit Bill';
+            editButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showEditBillModal(bill);
+            });
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'bill-action delete-bill';
+            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteButton.title = 'Delete Bill';
+            deleteButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showDeleteBillModal(bill);
+            });
+            
+            billActions.appendChild(editButton);
+            billActions.appendChild(deleteButton);
+            
+            // Add all elements to bill card
+            billCard.appendChild(billHeader);
+            billCard.appendChild(billAmount);
+            billCard.appendChild(billDetails);
+            billCard.appendChild(billStatus);
+            billCard.appendChild(billActions);
+            
+            return billCard;
+        }
+        
+        // Function to show edit bill modal
+        function showEditBillModal(bill) {
+            resetBillForm();
+            
+            document.getElementById('billId').value = bill.id;
+            document.getElementById('billName').value = bill.name;
+            document.getElementById('billAmount').value = bill.amount;
+            
+            // Set category
+            const categorySelect = document.getElementById('billCategory');
+            const standardCategories = ['electricity', 'water', 'rent', 'internet', 'phone', 'insurance', 'subscription'];
+            
+            if (standardCategories.includes(bill.category.toLowerCase())) {
+                categorySelect.value = bill.category.toLowerCase();
+                otherCategoryGroup.style.display = 'none';
+            } else {
+                categorySelect.value = 'other';
+                otherCategoryGroup.style.display = 'block';
+                document.getElementById('otherCategory').value = bill.category;
+            }
+            
+            // Set due date
+            const dueDate = new Date(bill.due_date);
+            document.getElementById('billDueDate').valueAsDate = dueDate;
+            
+            // Set frequency
+            document.getElementById('billFrequency').value = bill.frequency;
+            
+            // Set description
+            document.getElementById('billDescription').value = bill.description || '';
+            
+            // Update modal title
+            billModalAction.textContent = 'Edit';
+            
+            // Show modal
+            billModal.style.display = 'block';
+        }
+        
+        // Function to show pay bill modal
+        function showPayBillModal(bill) {
+            currentBillId = bill.id;
+            
+            // Set bill details
+            document.getElementById('payBillName').textContent = bill.name;
+            document.getElementById('payBillAmount').textContent = `₹${bill.amount.toFixed(2)}`;
+            
+            // Format date
+            const dueDate = new Date(bill.due_date);
+            const formattedDate = dueDate.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            document.getElementById('payBillDueDate').textContent = formattedDate;
+            
+            // Show modal
+            payBillModal.style.display = 'block';
+        }
+        
+        // Function to show delete bill modal
+        function showDeleteBillModal(bill) {
+            currentBillId = bill.id;
+            deleteBillModal.style.display = 'block';
+        }
+        
+        // Function to reset bill form
+        function resetBillForm() {
+            billForm.reset();
+            document.getElementById('billId').value = '';
+            document.getElementById('billDueDate').valueAsDate = new Date();
+            otherCategoryGroup.style.display = 'none';
+        }
+        
+        // Function to filter bills by status
+        function filterBillsByStatus(bills) {
+            const status = billStatusFilter.value;
+            
+            if (status === 'all') {
+                return bills;
+            }
+            
+            switch (status) {
+                case 'paid':
+                    return bills.filter(bill => bill.is_paid);
+                case 'unpaid':
+                    return bills.filter(bill => !bill.is_paid);
+                case 'overdue':
+                    return bills.filter(bill => bill.is_overdue);
+                case 'upcoming':
+                    return bills.filter(bill => bill.is_upcoming);
+                default:
+                    return bills;
+            }
+        }
+        
+        // Function to filter bills by category
+        function filterBillsByCategory(bills) {
+            const category = billCategoryFilter.value;
+            
+            if (category === 'all') {
+                return bills;
+            }
+            
+            return bills.filter(bill => bill.category.toLowerCase() === category.toLowerCase());
+        }
+        
+        // Combined filter function
+        function filterBills() {
+            updateBillsDisplay();
+        }
+    });
+</script>
+{% endblock %} 

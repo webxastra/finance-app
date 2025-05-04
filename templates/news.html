@@ -1,0 +1,1132 @@
+{% extends "layout.html" %}
+
+{% block title %}Financial News - FinancePro{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    .news-dashboard {
+        margin-bottom: 2rem;
+    }
+    
+    .news-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-pill {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-pill:hover {
+        background-color: #e9ecef;
+    }
+    
+    .filter-pill.active {
+        background-color: #4a6de5;
+        color: white;
+        border-color: #4a6de5;
+    }
+    
+    .news-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .news-card {
+        background-color: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .news-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    
+    .news-image {
+        height: 180px;
+        background-size: cover;
+        background-position: center;
+        background-color: #f8f9fa;
+        position: relative;
+    }
+    
+    .news-no-image {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 180px;
+        background-color: #f8f9fa;
+        color: #adb5bd;
+        font-size: 2rem;
+    }
+    
+    .news-category {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(0,0,0,0.6);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .news-sentiment {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .sentiment-positive {
+        background-color: rgba(40, 167, 69, 0.85);
+        color: white;
+    }
+    
+    .sentiment-neutral {
+        background-color: rgba(108, 117, 125, 0.85);
+        color: white;
+    }
+    
+    .sentiment-negative {
+        background-color: rgba(220, 53, 69, 0.85);
+        color: white;
+    }
+    
+    .news-content {
+        padding: 1.25rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .news-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #343a40;
+        line-height: 1.4;
+    }
+    
+    .news-summary {
+        color: #6c757d;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+        flex-grow: 1;
+    }
+    
+    .news-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+        font-size: 0.85rem;
+        color: #868e96;
+    }
+    
+    .news-source {
+        font-weight: 600;
+    }
+    
+    .news-time {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .breaking-news {
+        position: relative;
+        margin-bottom: 2rem;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .breaking-news-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: #dc3545;
+        color: white;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        z-index: 1;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
+    
+    .breaking-news-card {
+        display: flex;
+        background-color: white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .breaking-news-image {
+        width: 35%;
+        background-size: cover;
+        background-position: center;
+        min-height: 250px;
+    }
+    
+    .breaking-news-content {
+        padding: 2rem;
+        flex: 1;
+    }
+    
+    .breaking-news-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        line-height: 1.3;
+    }
+    
+    .breaking-news-summary {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        color: #495057;
+    }
+    
+    .breaking-news-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .breaking-news-source {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 2rem;
+    }
+    
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #4a6de5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .read-more-btn {
+        display: inline-block;
+        background-color: #4a6de5;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        margin-top: 1rem;
+    }
+
+    .read-more-btn:hover {
+        background-color: #3953b8;
+    }
+
+    .error-message {
+        padding: 2rem;
+        text-align: center;
+        background-color: #fff3f3;
+        border-radius: 10px;
+        color: #dc3545;
+    }
+
+    .search-container {
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border-radius: 5px;
+        border: 1px solid #e9ecef;
+        font-size: 1rem;
+    }
+    
+    .search-button {
+        background-color: #4a6de5;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.75rem 1.25rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .search-button:hover {
+        background-color: #3953b8;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+        gap: 0.5rem;
+    }
+    
+    .pagination-button {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .pagination-button:hover {
+        background-color: #e9ecef;
+    }
+    
+    .pagination-button.active {
+        background-color: #4a6de5;
+        color: white;
+        border-color: #4a6de5;
+    }
+    
+    .pagination-button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .bookmark-button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1;
+    }
+    
+    .bookmark-button i {
+        color: #6c757d;
+        font-size: 1rem;
+        transition: color 0.2s;
+    }
+    
+    .bookmark-button:hover i {
+        color: #ffc107;
+    }
+    
+    .bookmark-button.active i {
+        color: #ffc107;
+    }
+    
+    .bookmarked-news {
+        margin-bottom: 2rem;
+        border-top: 1px solid #e9ecef;
+        padding-top: 1rem;
+    }
+    
+    .featured-topics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .topic-chip {
+        background-color: #e9ecef;
+        border-radius: 20px;
+        padding: 0.25rem 1rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .topic-chip:hover {
+        background-color: #dee2e6;
+    }
+    
+    .topic-chip.active {
+        background-color: #4a6de5;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1><i class="fas fa-newspaper"></i> Financial News</h1>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="newsSearch" class="search-input" placeholder="Search for financial news...">
+        <button id="searchButton" class="search-button">
+            <i class="fas fa-search"></i> Search
+        </button>
+    </div>
+
+    <div class="featured-topics">
+        <span class="topic-chip active" data-topic="">All Topics</span>
+        <span class="topic-chip" data-topic="earnings">Earnings</span>
+        <span class="topic-chip" data-topic="ipo">IPO</span>
+        <span class="topic-chip" data-topic="mergers_acquisitions">M&A</span>
+        <span class="topic-chip" data-topic="financial_markets">Markets</span>
+        <span class="topic-chip" data-topic="economy_monetary">Economy</span>
+        <span class="topic-chip" data-topic="technology">Technology</span>
+        <span class="topic-chip" data-topic="energy_transportation">Energy</span>
+    </div>
+
+    <div id="bookmarkedNews" class="bookmarked-news" style="display: none;">
+        <h2 class="section-heading"><i class="fas fa-bookmark"></i> Bookmarked News</h2>
+        <div id="bookmarkedNewsGrid" class="news-grid">
+            <!-- Bookmarked news will appear here -->
+        </div>
+    </div>
+
+    <div class="news-dashboard">
+        <div class="news-filters">
+            <div class="filter-pill active" data-category="all">All News</div>
+            <div class="filter-pill" data-category="market">Market</div>
+            <div class="filter-pill" data-category="economy">Economy</div>
+            <div class="filter-pill" data-category="stocks">Stocks</div>
+            <div class="filter-pill" data-category="crypto">Cryptocurrency</div>
+            <div class="filter-pill" data-category="forex">Forex</div>
+        </div>
+    </div>
+
+    <div id="loadingNews" class="loading-container">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div id="errorMessage" class="error-message" style="display: none;">
+        <h3><i class="fas fa-exclamation-triangle"></i> Unable to load financial news</h3>
+        <p>We're experiencing some issues retrieving the latest financial news. Please try again later.</p>
+    </div>
+
+    <div id="newsContent" style="display: none;">
+        <div id="breakingNews" class="breaking-news" style="display: none;">
+            <div class="breaking-news-label">
+                <i class="fas fa-bolt"></i> BREAKING NEWS
+            </div>
+            <div class="breaking-news-card">
+                <div class="breaking-news-image" id="breakingNewsImage"></div>
+                <div class="breaking-news-content">
+                    <h2 class="breaking-news-title" id="breakingNewsTitle"></h2>
+                    <p class="breaking-news-summary" id="breakingNewsSummary"></p>
+                    <div class="breaking-news-meta">
+                        <div class="breaking-news-source" id="breakingNewsSource"></div>
+                        <div class="news-time">
+                            <i class="far fa-clock"></i>
+                            <span id="breakingNewsTime"></span>
+                        </div>
+                    </div>
+                    <a href="#" class="read-more-btn" id="breakingNewsLink" target="_blank">Read Full Story</a>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="section-heading"><i class="fas fa-stream"></i> Latest Financial News</h2>
+        <div id="newsGrid" class="news-grid">
+            <!-- News cards will be dynamically inserted here -->
+        </div>
+        
+        <div id="pagination" class="pagination">
+            <!-- Pagination buttons will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Alpha Vantage API key (using the same key as stocks)
+        const apiKey = 'LADL1UMENYM8TUAI';
+        
+        // DOM elements
+        const loadingElement = document.getElementById('loadingNews');
+        const errorElement = document.getElementById('errorMessage');
+        const newsContentElement = document.getElementById('newsContent');
+        const newsGridElement = document.getElementById('newsGrid');
+        const breakingNewsElement = document.getElementById('breakingNews');
+        const filterPills = document.querySelectorAll('.filter-pill');
+        const searchInput = document.getElementById('newsSearch');
+        const searchButton = document.getElementById('searchButton');
+        const paginationElement = document.getElementById('pagination');
+        const topicChips = document.querySelectorAll('.topic-chip');
+        const bookmarkedNewsElement = document.getElementById('bookmarkedNews');
+        const bookmarkedNewsGridElement = document.getElementById('bookmarkedNewsGrid');
+        
+        // State variables
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let totalPages = 1;
+        let allNewsItems = [];
+        let filteredNewsItems = [];
+        let currentCategory = 'all';
+        let currentSearchTerm = '';
+        let currentTopic = '';
+        let bookmarkedNews = loadBookmarkedNews();
+        
+        // Sample images for news without images
+        const defaultImages = [
+            'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80',
+            'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80',
+            'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80',
+            'https://images.unsplash.com/photo-1444653614773-995cb1ef9efa?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80',
+            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80'
+        ];
+        
+        // News categories mapping
+        const categories = {
+            'market': ['market', 'markets', 'stock market', 'wall street', 'dow', 'nasdaq', 'nyse'],
+            'economy': ['economy', 'economic', 'inflation', 'gdp', 'recession', 'fed', 'federal reserve', 'interest rate'],
+            'stocks': ['stock', 'stocks', 'equity', 'shares', 'dividend', 'earnings', 'ipo', 'quarterly'],
+            'crypto': ['crypto', 'cryptocurrency', 'bitcoin', 'ethereum', 'blockchain', 'token', 'altcoin', 'defi'],
+            'forex': ['forex', 'currency', 'exchange rate', 'dollar', 'euro', 'yen', 'pound', 'yuan']
+        };
+        
+        // Sentiment keywords mapping
+        const sentimentKeywords = {
+            positive: ['gain', 'surge', 'rise', 'jump', 'soar', 'rally', 'growth', 'profit', 'bullish', 'outperform', 'beat', 'up', 'high', 'record'],
+            negative: ['loss', 'drop', 'fall', 'plunge', 'decline', 'slump', 'crash', 'bearish', 'underperform', 'miss', 'down', 'low', 'worry', 'concern', 'risk']
+        };
+        
+        // Format date for display with accurate difference and robust parsing
+        function formatDate(dateString) {
+            // Provided local time as the reference for 'now'
+            const localNow = new Date('2025-04-23T06:11:29+05:30');
+            // Try to parse the date string in ISO format, fallback gracefully
+            let date = null;
+            if (typeof dateString === 'string') {
+                // Remove any fractional seconds and force 'Z' if missing
+                let cleaned = dateString.replace(/\.[0-9]+/, '');
+                if (!/[zZ]|[+-][0-9]{2}(:?[0-9]{2})?$/.test(cleaned)) {
+                    cleaned += 'Z';
+                }
+                date = new Date(cleaned);
+            } else {
+                date = new Date(dateString);
+            }
+            if (isNaN(date.getTime())) {
+                return 'Unknown time';
+            }
+            // Use UTC for both times to avoid timezone drift
+            const diffMs = localNow.getTime() - date.getTime();
+            if (diffMs < 0) return 'Just now';
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            if (diffMinutes < 1) {
+                return 'Just now';
+            } else if (diffMinutes < 60) {
+                return `${diffMinutes} min${diffMinutes !== 1 ? 's' : ''} ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            } else {
+                // Show calendar date for older news
+                return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+        }
+        
+        // Determine news category
+        function getNewsCategory(title, summary) {
+            const content = (title + ' ' + summary).toLowerCase();
+            
+            for (const [category, keywords] of Object.entries(categories)) {
+                for (const keyword of keywords) {
+                    if (content.includes(keyword)) {
+                        return category;
+                    }
+                }
+            }
+            
+            return 'market'; // Default category
+        }
+        
+        // Determine news sentiment
+        function getNewsSentiment(title, summary) {
+            const content = (title + ' ' + summary).toLowerCase();
+            let positiveScore = 0;
+            let negativeScore = 0;
+            
+            for (const keyword of sentimentKeywords.positive) {
+                if (content.includes(keyword)) {
+                    positiveScore++;
+                }
+            }
+            
+            for (const keyword of sentimentKeywords.negative) {
+                if (content.includes(keyword)) {
+                    negativeScore++;
+                }
+            }
+            
+            if (positiveScore > negativeScore + 1) {
+                return 'positive';
+            } else if (negativeScore > positiveScore + 1) {
+                return 'negative';
+            } else {
+                return 'neutral';
+            }
+        }
+        
+        // Load bookmarked news from localStorage
+        function loadBookmarkedNews() {
+            const bookmarks = localStorage.getItem('bookmarkedNews');
+            return bookmarks ? JSON.parse(bookmarks) : [];
+        }
+        
+        // Save bookmarked news to localStorage
+        function saveBookmarkedNews() {
+            localStorage.setItem('bookmarkedNews', JSON.stringify(bookmarkedNews));
+        }
+        
+        // Toggle bookmark status for a news item
+        function toggleBookmark(newsItem) {
+            const index = bookmarkedNews.findIndex(item => item.url === newsItem.url);
+            
+            if (index === -1) {
+                // Add to bookmarks
+                bookmarkedNews.push(newsItem);
+            } else {
+                // Remove from bookmarks
+                bookmarkedNews.splice(index, 1);
+            }
+            
+            saveBookmarkedNews();
+            updateBookmarkedNewsUI();
+        }
+        
+        // Update the bookmarked news UI
+        function updateBookmarkedNewsUI() {
+            bookmarkedNewsGridElement.innerHTML = '';
+            
+            if (bookmarkedNews.length === 0) {
+                bookmarkedNewsElement.style.display = 'none';
+                return;
+            }
+            
+            bookmarkedNewsElement.style.display = 'block';
+            
+            bookmarkedNews.forEach(newsItem => {
+                const newsCard = createNewsCard(newsItem, true);
+                bookmarkedNewsGridElement.appendChild(newsCard);
+            });
+        }
+        
+        // Fetch and display financial news
+        async function fetchFinancialNews() {
+            loadingElement.style.display = 'flex';
+            errorElement.style.display = 'none';
+            newsContentElement.style.display = 'none';
+            
+            try {
+                let url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&apikey=${apiKey}&sort=LATEST`;
+                
+                if (currentTopic) {
+                    url += `&topics=${currentTopic}`;
+                }
+                
+                if (currentSearchTerm) {
+                    url += `&tickers=${currentSearchTerm}`;
+                }
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                
+                const data = await response.json();
+                
+                // Use the actual API data
+                if (data && data.feed && data.feed.length > 0) {
+                    processNewsData(data);
+                } else {
+                    // Fallback to mock data if the API doesn't return valid data
+                    const mockData = getMockFinancialNews();
+                    processNewsData(mockData);
+                }
+            } catch (error) {
+                console.error('Error fetching financial news:', error);
+                
+                // Fallback to mock data in case of any error
+                const mockData = getMockFinancialNews();
+                processNewsData(mockData);
+            }
+        }
+        
+        // Process news data and set up pagination
+        function processNewsData(newsData) {
+            loadingElement.style.display = 'none';
+            
+            // Check if we have news to display
+            if (!newsData || !newsData.feed || newsData.feed.length === 0) {
+                errorElement.style.display = 'block';
+                return;
+            }
+            
+            // Store all news items
+            allNewsItems = newsData.feed.map(item => {
+                // Add a category based on content analysis
+                item.category = getNewsCategory(item.title, item.summary);
+                
+                // Add sentiment analysis
+                item.sentiment = getNewsSentiment(item.title, item.summary);
+                
+                return item;
+            });
+            
+            // Apply category filter
+            filterNewsByCategory(currentCategory);
+            
+            // Show the news content
+            newsContentElement.style.display = 'block';
+        }
+        
+        // Display news items for the current page
+        function displayNewsItems() {
+            // Clear existing news
+            newsGridElement.innerHTML = '';
+            
+            if (filteredNewsItems.length === 0) {
+                newsGridElement.innerHTML = '<div class="error-message"><p>No news items match your filters. Try different criteria.</p></div>';
+                return;
+            }
+            
+            // Calculate pagination
+            totalPages = Math.ceil(filteredNewsItems.length / itemsPerPage);
+            if (currentPage > totalPages) {
+                currentPage = 1;
+            }
+            
+            // Get items for current page
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredNewsItems.length);
+            const pageItems = filteredNewsItems.slice(startIndex, endIndex);
+            
+            // Display breaking news (first item of all filtered items)
+            if (filteredNewsItems.length > 0 && currentPage === 1) {
+                displayBreakingNews(filteredNewsItems[0]);
+            } else {
+                breakingNewsElement.style.display = 'none';
+            }
+            
+            // Display regular news items (skip the first one if it's page 1)
+            const itemsToShow = currentPage === 1 ? pageItems.slice(1) : pageItems;
+            
+            itemsToShow.forEach(newsItem => {
+                const newsCard = createNewsCard(newsItem);
+                newsGridElement.appendChild(newsCard);
+            });
+            
+            // Update pagination UI
+            updatePagination();
+        }
+        
+        // Update pagination controls
+        function updatePagination() {
+            paginationElement.innerHTML = '';
+            
+            if (totalPages <= 1) {
+                return;
+            }
+            
+            // Previous button
+            const prevButton = document.createElement('button');
+            prevButton.className = `pagination-button ${currentPage === 1 ? 'disabled' : ''}`;
+            prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+            prevButton.disabled = currentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayNewsItems();
+                    window.scrollTo(0, 0);
+                }
+            });
+            paginationElement.appendChild(prevButton);
+            
+            // Page buttons
+            const maxButtonsToShow = 5;
+            const startPage = Math.max(1, currentPage - Math.floor(maxButtonsToShow / 2));
+            const endPage = Math.min(totalPages, startPage + maxButtonsToShow - 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.className = `pagination-button ${i === currentPage ? 'active' : ''}`;
+                pageButton.textContent = i;
+                pageButton.addEventListener('click', () => {
+                    currentPage = i;
+                    displayNewsItems();
+                    window.scrollTo(0, 0);
+                });
+                paginationElement.appendChild(pageButton);
+            }
+            
+            // Next button
+            const nextButton = document.createElement('button');
+            nextButton.className = `pagination-button ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayNewsItems();
+                    window.scrollTo(0, 0);
+                }
+            });
+            paginationElement.appendChild(nextButton);
+        }
+        
+        // Display breaking news
+        function displayBreakingNews(newsItem) {
+            if (!newsItem) {
+                breakingNewsElement.style.display = 'none';
+                return;
+            }
+            
+            const imageUrl = newsItem.banner_image || getRandomDefaultImage();
+            document.getElementById('breakingNewsImage').style.backgroundImage = `url(${imageUrl})`;
+            document.getElementById('breakingNewsTitle').textContent = newsItem.title;
+            document.getElementById('breakingNewsSummary').textContent = newsItem.summary;
+            document.getElementById('breakingNewsSource').textContent = newsItem.source;
+            document.getElementById('breakingNewsTime').textContent = formatDate(newsItem.time_published);
+            document.getElementById('breakingNewsLink').href = newsItem.url;
+            
+            breakingNewsElement.style.display = 'block';
+        }
+        
+        // Create a news card element
+        function createNewsCard(newsItem, isBookmarked = false) {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'news-card';
+            cardDiv.dataset.category = newsItem.category;
+            
+            const imageDiv = document.createElement('div');
+            
+            if (newsItem.banner_image) {
+                imageDiv.className = 'news-image';
+                imageDiv.style.backgroundImage = `url(${newsItem.banner_image})`;
+                
+                const categorySpan = document.createElement('span');
+                categorySpan.className = 'news-category';
+                categorySpan.textContent = capitalizeFirstLetter(newsItem.category);
+                imageDiv.appendChild(categorySpan);
+                
+                const sentimentSpan = document.createElement('span');
+                sentimentSpan.className = `news-sentiment sentiment-${newsItem.sentiment}`;
+                sentimentSpan.textContent = capitalizeFirstLetter(newsItem.sentiment);
+                imageDiv.appendChild(sentimentSpan);
+            } else {
+                imageDiv.className = 'news-image';
+                imageDiv.style.backgroundImage = `url(${getRandomDefaultImage()})`;
+                
+                const categorySpan = document.createElement('span');
+                categorySpan.className = 'news-category';
+                categorySpan.textContent = capitalizeFirstLetter(newsItem.category);
+                imageDiv.appendChild(categorySpan);
+                
+                const sentimentSpan = document.createElement('span');
+                sentimentSpan.className = `news-sentiment sentiment-${newsItem.sentiment}`;
+                sentimentSpan.textContent = capitalizeFirstLetter(newsItem.sentiment);
+                imageDiv.appendChild(sentimentSpan);
+            }
+            
+            // Add bookmark button
+            const isCurrentlyBookmarked = bookmarkedNews.some(item => item.url === newsItem.url);
+            const bookmarkButton = document.createElement('button');
+            bookmarkButton.className = `bookmark-button ${isCurrentlyBookmarked ? 'active' : ''}`;
+            bookmarkButton.innerHTML = `<i class="fas ${isCurrentlyBookmarked ? 'fa-bookmark' : 'fa-bookmark'}"></i>`;
+            bookmarkButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleBookmark(newsItem);
+                
+                // Update bookmark icon
+                bookmarkButton.classList.toggle('active');
+                bookmarkButton.innerHTML = `<i class="fas ${bookmarkButton.classList.contains('active') ? 'fa-bookmark' : 'fa-bookmark'}"></i>`;
+            });
+            imageDiv.appendChild(bookmarkButton);
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'news-content';
+            
+            const titleH3 = document.createElement('h3');
+            titleH3.className = 'news-title';
+            titleH3.textContent = newsItem.title;
+            
+            const summaryP = document.createElement('p');
+            summaryP.className = 'news-summary';
+            summaryP.textContent = newsItem.summary.substring(0, 120) + '...';
+            
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'news-meta';
+            
+            const sourceSpan = document.createElement('span');
+            sourceSpan.className = 'news-source';
+            sourceSpan.textContent = newsItem.source;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'news-time';
+            
+            const clockIcon = document.createElement('i');
+            clockIcon.className = 'far fa-clock';
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = formatDate(newsItem.time_published);
+            
+            timeDiv.appendChild(clockIcon);
+            timeDiv.appendChild(timeSpan);
+            
+            metaDiv.appendChild(sourceSpan);
+            metaDiv.appendChild(timeDiv);
+            
+            const readMoreLink = document.createElement('a');
+            readMoreLink.href = newsItem.url;
+            readMoreLink.className = 'read-more-btn';
+            readMoreLink.textContent = 'Read More';
+            readMoreLink.target = '_blank';
+            
+            contentDiv.appendChild(titleH3);
+            contentDiv.appendChild(summaryP);
+            contentDiv.appendChild(metaDiv);
+            contentDiv.appendChild(readMoreLink);
+            
+            cardDiv.appendChild(imageDiv);
+            cardDiv.appendChild(contentDiv);
+            
+            return cardDiv;
+        }
+        
+        // Get a random default image
+        function getRandomDefaultImage() {
+            return defaultImages[Math.floor(Math.random() * defaultImages.length)];
+        }
+        
+        // Capitalize first letter
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // Filter news by category
+        function filterNewsByCategory(category) {
+            currentCategory = category;
+            currentPage = 1;
+            
+            if (category === 'all') {
+                // Show all news
+                filteredNewsItems = [...allNewsItems];
+            } else {
+                // Show only news in selected category
+                filteredNewsItems = allNewsItems.filter(item => item.category === category);
+            }
+            
+            displayNewsItems();
+        }
+        
+        // Filter news by search term
+        function searchNews() {
+            currentSearchTerm = searchInput.value.trim();
+            currentPage = 1;
+            
+            if (currentSearchTerm) {
+                fetchFinancialNews();
+            }
+        }
+        
+        // Filter news by topic
+        function filterByTopic(topic) {
+            currentTopic = topic;
+            currentPage = 1;
+            fetchFinancialNews();
+        }
+        
+        // Add click event listeners to filter pills
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', function() {
+                // Remove active class from all pills
+                filterPills.forEach(p => p.classList.remove('active'));
+                
+                // Add active class to clicked pill
+                this.classList.add('active');
+                
+                // Filter news by category
+                filterNewsByCategory(this.dataset.category);
+            });
+        });
+        
+        // Add click event listeners to topic chips
+        topicChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                // Remove active class from all chips
+                topicChips.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked chip
+                this.classList.add('active');
+                
+                // Filter news by topic
+                filterByTopic(this.dataset.topic);
+            });
+        });
+        
+        // Add event listener for search
+        searchButton.addEventListener('click', searchNews);
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                searchNews();
+            }
+        });
+        
+        // Mock financial news data for development
+        function getMockFinancialNews() {
+            return {
+                feed: [
+                    {
+                        title: "Fed Signals Potential Interest Rate Cut as Inflation Cools",
+                        url: "https://example.com/fed-interest-rate-cut",
+                        time_published: "2023-07-28T14:30:00Z",
+                        source: "Financial Times",
+                        summary: "Federal Reserve officials indicated they may be ready to cut interest rates as early as September if inflation continues to show signs of moderating. Markets responded positively to the news, with the S&P 500 reaching new highs on expectations of looser monetary policy.",
+                        banner_image: "https://images.unsplash.com/photo-1607736663567-8da33c264091?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "Apple Stock Surges 8% After Better-Than-Expected Earnings",
+                        url: "https://example.com/apple-earnings",
+                        time_published: "2023-07-28T12:15:00Z",
+                        source: "CNBC",
+                        summary: "Apple Inc. shares jumped more than 8% in after-hours trading following the company's quarterly results that easily topped Wall Street expectations. Revenue grew 10% year-over-year driven by strong iPhone sales and continued growth in services.",
+                        banner_image: "https://images.unsplash.com/photo-1610850577552-c26175542888?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "U.S. Economy Expands 2.8% in Q2, Beating Expectations",
+                        url: "https://example.com/us-gdp-q2",
+                        time_published: "2023-07-27T10:00:00Z",
+                        source: "Bloomberg",
+                        summary: "The U.S. economy grew faster than expected in the second quarter, with GDP expanding at a 2.8% annualized rate according to Commerce Department data. Consumer spending remained robust despite elevated interest rates, suggesting economic resilience.",
+                        banner_image: "https://images.unsplash.com/photo-1444653614773-995cb1ef9efa?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "Bitcoin Falls Below $40,000 as Crypto Market Selloff Continues",
+                        url: "https://example.com/bitcoin-falls",
+                        time_published: "2023-07-27T08:45:00Z",
+                        source: "CoinDesk",
+                        summary: "Bitcoin dropped below the $40,000 mark on Wednesday, extending its decline to nearly 15% over the past week. The selloff has been attributed to concerns over tighter regulation and reduced institutional interest in cryptocurrencies.",
+                        banner_image: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "European Markets Rally on Strong Corporate Earnings",
+                        url: "https://example.com/european-markets",
+                        time_published: "2023-07-26T16:30:00Z",
+                        source: "Reuters",
+                        summary: "European stock markets closed higher on Wednesday, with the Stoxx 600 index gaining 1.2% as a wave of positive corporate earnings boosted investor sentiment. Luxury goods and banking sectors led the advance with LVMH and BNP Paribas both posting record profits.",
+                        banner_image: "https://images.unsplash.com/photo-1491156855053-9cdff72c7f85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "Oil Prices Rise Amid Middle East Tensions and Supply Concerns",
+                        url: "https://example.com/oil-prices-rise",
+                        time_published: "2023-07-26T14:15:00Z",
+                        source: "Wall Street Journal",
+                        summary: "Crude oil prices climbed on Wednesday with Brent crude reaching $85 per barrel as geopolitical tensions in the Middle East raised concerns about potential supply disruptions. The International Energy Agency warned that global oil markets could tighten in the coming months.",
+                        banner_image: null
+                    },
+                    {
+                        title: "Dollar Weakens Against Major Currencies on Fed Rate Cut Bets",
+                        url: "https://example.com/dollar-weakens",
+                        time_published: "2023-07-26T11:00:00Z",
+                        source: "Financial Times",
+                        summary: "The U.S. dollar fell against a basket of major currencies as investors increased bets on Federal Reserve interest rate cuts. The euro and British pound both reached multi-month highs against the greenback as monetary policy expectations shift.",
+                        banner_image: null
+                    },
+                    {
+                        title: "Nvidia Becomes World's Most Valuable Company on AI Boom",
+                        url: "https://example.com/nvidia-valuation",
+                        time_published: "2023-07-25T21:45:00Z",
+                        source: "CNBC",
+                        summary: "Nvidia briefly surpassed Microsoft and Apple to become the world's most valuable company as investors continue to bet on the chipmaker's central role in the artificial intelligence revolution. The company's stock has more than tripled in value over the past year.",
+                        banner_image: "https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "Housing Market Shows Signs of Recovery as Mortgage Rates Stabilize",
+                        url: "https://example.com/housing-market",
+                        time_published: "2023-07-25T16:30:00Z",
+                        source: "Reuters",
+                        summary: "U.S. home sales increased for the second consecutive month in June as mortgage rates stabilized and housing inventory improved. The National Association of Realtors reported a 3.5% rise in existing home sales compared to the previous month.",
+                        banner_image: null
+                    },
+                    {
+                        title: "Tesla Announces Major Expansion into Energy Storage Market",
+                        url: "https://example.com/tesla-energy",
+                        time_published: "2023-07-25T14:00:00Z",
+                        source: "Bloomberg",
+                        summary: "Tesla revealed plans to significantly expand its energy storage business with new utility-scale battery products and manufacturing facilities. CEO Elon Musk stated that energy storage could eventually rival the company's automotive business in size and importance.",
+                        banner_image: "https://images.unsplash.com/photo-1560122143-e1b263af12c4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    },
+                    {
+                        title: "Bank of Japan Maintains Ultra-Loose Monetary Policy Despite Inflation",
+                        url: "https://example.com/boj-policy",
+                        time_published: "2023-07-24T09:15:00Z",
+                        source: "Nikkei Asia",
+                        summary: "The Bank of Japan kept its ultra-loose monetary policy unchanged despite rising inflation, maintaining negative interest rates and yield curve control. Governor Kazuo Ueda signaled that the central bank needs more evidence of sustainable inflation before tightening policy.",
+                        banner_image: null
+                    },
+                    {
+                        title: "Gold Reaches New All-Time High on Geopolitical Uncertainty",
+                        url: "https://example.com/gold-record",
+                        time_published: "2023-07-24T08:30:00Z",
+                        source: "MarketWatch",
+                        summary: "Gold prices hit a new all-time high above $2,400 per ounce as investors seek safe-haven assets amid growing geopolitical tensions and expectations of central bank rate cuts. Analysts suggest the precious metal could continue its upward trajectory throughout the year.",
+                        banner_image: "https://images.unsplash.com/photo-1610375461246-83df859d849d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1050&q=80"
+                    }
+                ]
+            };
+        }
+        
+        // Initialize the page
+        fetchFinancialNews();
+        updateBookmarkedNewsUI();
+        
+        // Refresh news every 5 minutes
+        setInterval(fetchFinancialNews, 5 * 60 * 1000);
+    });
+</script>
+{% endblock %} 

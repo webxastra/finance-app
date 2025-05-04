@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Security meta tags to prevent caching of authenticated pages -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>{% block title %}FinancePro - Personal Finance Management{% endblock %}</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Global Month Selector Styles */
+        .global-month-selector {
+            display: flex;
+            align-items: center;
+            margin-left: 20px;
+            padding: 6px 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            color: white;
+        }
+        
+        .month-selector-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        
+        .month-selector-wrapper label {
+            margin-right: 8px;
+            color: white;
+        }
+        
+        .global-month-select {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .global-month-select:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+        }
+        
+        .global-month-select option {
+            background-color: #333;
+            color: white;
+        }
+        
+        @media (max-width: 992px) {
+            .global-month-selector {
+                margin: 10px 0;
+                justify-content: center;
+                width: 100%;
+            }
+            
+            .navbar {
+                flex-wrap: wrap;
+            }
+            
+            .auth-links {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+    
+    <!-- Additional head content blocks -->
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Header and navbar appears after login -->
+    {% block navbar %}
+    <header class="navbar">
+        <div class="brand">
+            <a href="{{ url_for('main.home') }}"><i class="fas fa-chart-line"></i> FinancePro</a>
+        </div>
+        
+        <button class="menu-toggle" id="menuToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        
+        <nav class="nav-links">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.home') }}">
+                    <i class="fas fa-home"></i> Home
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.balance') }}">
+                    <i class="fas fa-wallet"></i> Balance
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.income_management') }}">
+                    <i class="fas fa-money-bill-wave"></i> Income
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.service') }}">
+                    <i class="fas fa-concierge-bell"></i> Services
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.charts') }}">
+                    <i class="fas fa-chart-bar"></i> Charts
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.transactions') }}">
+                    <i class="fas fa-exchange-alt"></i> Transactions
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.investment') }}">
+                    <i class="fas fa-calculator"></i> Investment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.budget') }}">
+                    <i class="fas fa-money-check-alt"></i> Budget
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.savings') }}">
+                    <i class="fas fa-piggy-bank"></i> Savings
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.bills') }}">
+                    <i class="fas fa-file-invoice-dollar"></i> Bills
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.news') }}">
+                    <i class="fas fa-newspaper"></i> News
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.stock_info') }}">
+                    <i class="fas fa-info-circle"></i> Stocks
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('main.stock_prediction') }}">
+                    <i class="fas fa-chart-line"></i> Predictions
+                </a>
+            </li>
+        </nav>
+        <div class="auth-links">
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+        
+        <!-- Global Month Selector -->
+        <div class="global-month-selector">
+            <div class="month-selector-wrapper">
+                <label for="globalMonthSelector"><i class="fas fa-calendar-alt"></i></label>
+                <select id="globalMonthSelector" class="global-month-select">
+                    <option value="current">Current Month</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+        </div>
+    </header>
+    {% endblock %}
+
+    <!-- Main content -->
+    <main class="container">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page content -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2024 FinancePro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Add a listener to detect when the page loads from the browser cache
+        window.addEventListener('pageshow', function(event) {
+            // If the page was loaded from the browser cache after logout
+            if (event.persisted) {
+                // Redirect to login page
+                window.location.href = "{{ url_for('auth.login') }}";
+            }
+        });
+        
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('menuToggle');
+            const navLinks = document.querySelector('.nav-links');
+            
+            if (menuToggle) {
+                menuToggle.addEventListener('click', function() {
+                    navLinks.classList.toggle('show');
+                    
+                    // Toggle menu icon
+                    const icon = menuToggle.querySelector('i');
+                    if (icon.classList.contains('fa-bars')) {
+                        icon.classList.remove('fa-bars');
+                        icon.classList.add('fa-times');
+                    } else {
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    }
+                });
+            }
+            
+            // Global month selector functionality
+            const globalMonthSelector = document.getElementById('globalMonthSelector');
+            if (globalMonthSelector) {
+                // Initialize with stored value or current month
+                const currentDate = new Date();
+                const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+                const currentYear = currentDate.getFullYear();
+                
+                // Get stored month from localStorage or use current month
+                const storedMonth = localStorage.getItem('selectedMonth') || 'current';
+                globalMonthSelector.value = storedMonth;
+                
+                // When month changes
+                globalMonthSelector.addEventListener('change', function() {
+                    const selectedMonth = this.value;
+                    
+                    // Store in localStorage
+                    localStorage.setItem('selectedMonth', selectedMonth);
+                    
+                    // Create a custom event to notify pages
+                    const monthChangeEvent = new CustomEvent('monthChanged', {
+                        detail: { month: selectedMonth }
+                    });
+                    document.dispatchEvent(monthChangeEvent);
+                    
+                    // Reload the page to apply the filter if needed
+                    if (!window.location.href.includes('/bills')) {
+                        // Only reload non-bills pages
+                        window.location.reload();
+                    }
+                });
+                
+                // Add current month and year to global namespace for other scripts
+                window.appState = window.appState || {};
+                window.appState.currentMonth = currentMonth;
+                window.appState.currentYear = currentYear;
+                
+                // Set selected month in global namespace
+                const selectedMonth = globalMonthSelector.value === 'current' ? currentMonth : parseInt(globalMonthSelector.value);
+                window.appState.selectedMonth = selectedMonth;
+                
+                // Create utility functions for date filtering
+                window.appState.getMonthStartDate = function() {
+                    const year = currentYear;
+                    const month = window.appState.selectedMonth === 'current' ? 
+                        currentMonth : window.appState.selectedMonth;
+                    
+                    return new Date(year, month - 1, 1); // Month is 0-indexed in Date constructor
+                };
+                
+                window.appState.getMonthEndDate = function() {
+                    const year = currentYear;
+                    const month = window.appState.selectedMonth === 'current' ? 
+                        currentMonth : window.appState.selectedMonth;
+                    
+                    // End date is the 0th day of next month (which is the last day of the current month)
+                    return new Date(year, month, 0);
+                };
+                
+                // Function to check if a date is in the selected month
+                window.appState.isInSelectedMonth = function(dateToCheck) {
+                    const date = new Date(dateToCheck);
+                    const startDate = window.appState.getMonthStartDate();
+                    const endDate = window.appState.getMonthEndDate();
+                    
+                    return date >= startDate && date <= endDate;
+                };
+                
+                // Function to format a date to YYYY-MM-DD for input elements
+                window.appState.formatDateForInput = function(date) {
+                    const d = new Date(date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+                
+                // Set default date for all date inputs to the 1st of the selected month
+                window.appState.setDefaultDates = function() {
+                    const dateInputs = document.querySelectorAll('input[type="date"]');
+                    if (dateInputs.length > 0) {
+                        const startDate = window.appState.getMonthStartDate();
+                        const formattedDate = window.appState.formatDateForInput(startDate);
+                        
+                        dateInputs.forEach(input => {
+                            // Skip if it's a target date input for savings goals
+                            if (!input.id.includes('target') && !input.classList.contains('ignore-month-filter')) {
+                                input.value = formattedDate;
+                                
+                                // Set min and max date attributes to restrict to selected month
+                                const endDate = window.appState.getMonthEndDate();
+                                input.min = window.appState.formatDateForInput(startDate);
+                                input.max = window.appState.formatDateForInput(endDate);
+                            }
+                        });
+                    }
+                };
+                
+                // Call it immediately after page load
+                window.appState.setDefaultDates();
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

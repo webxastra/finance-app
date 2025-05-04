@@ -1,0 +1,296 @@
+{% extends "layout.html" %}
+
+{% block title %}Services - FinancePro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Premium Financial Services</h1>
+        <p>Expert solutions customized for your financial success</p>
+    </div>
+
+    <div class="dashboard-section">
+        <div class="dashboard-title">
+            Available Services
+            <span id="salaryInfo" class="salary-info">Based on monthly salary: <span id="userSalary">Loading...</span></span>
+        </div>
+        <div class="finance-summary">
+            <div class="finance-card salary" id="financialPlanningCard">
+                <div class="finance-card-title">Financial Planning</div>
+                <div class="finance-card-amount">₹5000/year</div>
+                <p>Comprehensive financial planning with expert advisors</p>
+                <div class="service-affordability" id="financialPlanningAffordability"></div>
+            </div>
+            <div class="finance-card expenses" id="taxConsultationCard">
+                <div class="finance-card-title">Tax Consultation</div>
+                <div class="finance-card-amount">₹3000/year</div>
+                <p>Optimize your tax strategy and maximize returns</p>
+                <div class="service-affordability" id="taxConsultationAffordability"></div>
+            </div>
+            <div class="finance-card balance" id="investmentAdvisoryCard">
+                <div class="finance-card-title">Investment Advisory</div>
+                <div class="finance-card-amount">₹8000/year</div>
+                <p>Professional guidance for your investment portfolio</p>
+                <div class="service-affordability" id="investmentAdvisoryAffordability"></div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button class="action-button" id="requestServiceBtn">
+                <span><i class="fas fa-arrow-right"></i></span> Request Service
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard-section">
+        <div class="dashboard-title">Benefits of Our Services</div>
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-title">Expert Guidance</div>
+                <p class="feature-description">
+                    Our team of certified financial advisors brings years of experience to help you navigate complex financial decisions with confidence.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Tax Optimization</div>
+                <p class="feature-description">
+                    We identify tax-saving opportunities and implement strategies to reduce your tax burden while ensuring full compliance with regulations.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">Investment Strategies</div>
+                <p class="feature-description">
+                    Receive personalized investment recommendations based on your risk tolerance, financial goals, and time horizon.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-section" id="recommendedServices">
+        <div class="dashboard-title">Recommended for You</div>
+        <div id="serviceRecommendations">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading recommendations...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Service Request Modal -->
+<div id="serviceModal" class="modal" style="display: none;">
+    <h2 class="modal-title">Request Service</h2>
+    <form id="serviceForm">
+        <div class="form-group">
+            <label for="serviceType">Select Service</label>
+            <select id="serviceType" name="serviceType" required>
+                <option value="">Select a service</option>
+                <option value="financial-planning">Financial Planning</option>
+                <option value="tax-consultation">Tax Consultation</option>
+                <option value="investment-advisory">Investment Advisory</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" name="fullName" placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Your email address" required>
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" id="cancelServiceBtn">Cancel</button>
+            <button type="submit" class="modal-add">Submit Request</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const requestServiceBtn = document.getElementById('requestServiceBtn');
+        const serviceModal = document.getElementById('serviceModal');
+        const cancelServiceBtn = document.getElementById('cancelServiceBtn');
+        const serviceForm = document.getElementById('serviceForm');
+        const userSalaryEl = document.getElementById('userSalary');
+        
+        // Service prices
+        const servicePrices = {
+            'financial-planning': 5000,
+            'tax-consultation': 3000,
+            'investment-advisory': 8000
+        };
+        
+        // Get user's salary and calculate recommendations
+        async function getUserSalaryAndCalculate() {
+            try {
+                const response = await fetch('/api/income/current-month');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch salary information');
+                }
+                
+                const data = await response.json();
+                const userSalary = data.default_salary || 0;
+                const monthlyIncome = data.total_income || 0;
+                
+                // Use actual monthly income if available, otherwise use default salary
+                const effectiveSalary = monthlyIncome > 0 ? monthlyIncome : userSalary;
+                
+                // Display salary information
+                userSalaryEl.textContent = `₹${effectiveSalary.toFixed(2)}`;
+                
+                // Calculate affordability
+                calculateAffordability(effectiveSalary);
+                
+                // Generate service recommendations
+                generateRecommendations(effectiveSalary);
+                
+            } catch (error) {
+                console.error('Error fetching salary information:', error);
+                userSalaryEl.textContent = 'Unavailable';
+            }
+        }
+        
+        // Calculate affordability of services based on salary
+        function calculateAffordability(salary) {
+            // Monthly equivalents (yearly price / 12)
+            const monthlyPrices = {
+                'financial-planning': servicePrices['financial-planning'] / 12,
+                'tax-consultation': servicePrices['tax-consultation'] / 12,
+                'investment-advisory': servicePrices['investment-advisory'] / 12
+            };
+            
+            // Calculate affordability percentage
+            const affordability = {
+                'financial-planning': Math.min(100, Math.round((salary / monthlyPrices['financial-planning']) * 10)),
+                'tax-consultation': Math.min(100, Math.round((salary / monthlyPrices['tax-consultation']) * 10)),
+                'investment-advisory': Math.min(100, Math.round((salary / monthlyPrices['investment-advisory']) * 10))
+            };
+            
+            // Update UI with affordability indicators
+            updateAffordabilityUI('financialPlanningAffordability', affordability['financial-planning']);
+            updateAffordabilityUI('taxConsultationAffordability', affordability['tax-consultation']);
+            updateAffordabilityUI('investmentAdvisoryAffordability', affordability['investment-advisory']);
+        }
+        
+        // Update affordability UI element
+        function updateAffordabilityUI(elementId, percentage) {
+            const element = document.getElementById(elementId);
+            
+            if (percentage >= 80) {
+                element.innerHTML = '<span class="affordability-indicator good"><i class="fas fa-check-circle"></i> Easily Affordable</span>';
+                element.parentElement.classList.add('affordable');
+            } else if (percentage >= 40) {
+                element.innerHTML = '<span class="affordability-indicator moderate"><i class="fas fa-info-circle"></i> Moderately Affordable</span>';
+                element.parentElement.classList.add('moderate-affordable');
+            } else {
+                element.innerHTML = '<span class="affordability-indicator challenging"><i class="fas fa-exclamation-circle"></i> Consider Later</span>';
+                element.parentElement.classList.add('not-affordable');
+            }
+        }
+        
+        // Generate service recommendations based on salary
+        function generateRecommendations(salary) {
+            const recommendationsElement = document.getElementById('serviceRecommendations');
+            
+            // Monthly income as percentage of yearly services
+            const financialPlanningPercentage = (salary * 12) / servicePrices['financial-planning'] * 100;
+            const taxConsultationPercentage = (salary * 12) / servicePrices['tax-consultation'] * 100;
+            const investmentAdvisoryPercentage = (salary * 12) / servicePrices['investment-advisory'] * 100;
+            
+            // Build recommendations
+            let html = '';
+            
+            if (salary === 0) {
+                html = `
+                    <div class="recommendation-alert">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Please update your salary information in the Income Management page to get personalized service recommendations.</p>
+                    </div>
+                `;
+            } else {
+                html = '<div class="recommendations-container">';
+                
+                if (taxConsultationPercentage >= 50) {
+                    html += `
+                        <div class="recommendation-card">
+                            <div class="recommendation-title">Tax Consultation</div>
+                            <div class="recommendation-text">
+                                <i class="fas fa-check"></i> Based on your income, our Tax Consultation service is a good fit to optimize your tax strategy.
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (salary >= 30000) {
+                    html += `
+                        <div class="recommendation-card">
+                            <div class="recommendation-title">Investment Advisory</div>
+                            <div class="recommendation-text">
+                                <i class="fas fa-check"></i> With your income level, our Investment Advisory could help you grow your wealth effectively.
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (financialPlanningPercentage < 40) {
+                    html += `
+                        <div class="recommendation-card">
+                            <div class="recommendation-title">Free Consultation</div>
+                            <div class="recommendation-text">
+                                <i class="fas fa-star"></i> We offer a free financial health check to help you determine your next steps.
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            }
+            
+            recommendationsElement.innerHTML = html;
+        }
+        
+        // Show modal when Request Service button is clicked
+        requestServiceBtn.addEventListener('click', function() {
+            serviceModal.style.display = 'block';
+        });
+
+        // Hide modal when Cancel button is clicked
+        cancelServiceBtn.addEventListener('click', function() {
+            serviceModal.style.display = 'none';
+        });
+
+        // Handle form submission
+        serviceForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const serviceType = document.getElementById('serviceType').value;
+            const fullName = document.getElementById('fullName').value;
+            const email = document.getElementById('email').value;
+
+            // In a real application, you would send this data to the server
+            console.log('Service requested:', {
+                serviceType,
+                fullName,
+                email
+            });
+
+            // Show success message (in a real app, do this after successful API response)
+            alert('Service request submitted successfully! We will contact you soon.');
+            
+            // Hide modal and reset form
+            serviceModal.style.display = 'none';
+            serviceForm.reset();
+        });
+
+        // Close modal if user clicks outside of it
+        window.addEventListener('click', function(event) {
+            if (event.target == serviceModal) {
+                serviceModal.style.display = 'none';
+            }
+        });
+        
+        // Initialize - load user salary and calculate affordability
+        getUserSalaryAndCalculate();
+    });
+</script>
+{% endblock %} 

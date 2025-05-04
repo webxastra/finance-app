@@ -1,0 +1,291 @@
+{% extends "layout.html" %}
+
+{% block title %}Recurring Subscriptions{% endblock %}
+
+{% block styles %}
+<style>
+  .subscription-card {
+    border-radius: 12px;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  
+  .subscription-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .upcoming-payment {
+    border-left: 4px solid #3b82f6;
+  }
+  
+  .critical-date {
+    border-left: 4px solid #ef4444;
+  }
+  
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+  }
+  
+  .status-active {
+    background-color: #dcfce7;
+    color: #166534;
+  }
+  
+  .status-upcoming {
+    background-color: #e0f2fe;
+    color: #0369a1;
+  }
+  
+  .amount-high {
+    color: #ef4444;
+  }
+  
+  .amount-medium {
+    color: #f59e0b;
+  }
+  
+  .amount-low {
+    color: #10b981;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-800">Recurring Subscriptions</h1>
+    <div class="text-right">
+      <p class="text-lg font-medium">Monthly Cost: <span class="text-blue-600">${{ monthly_cost }}</span></p>
+      <p class="text-sm text-gray-600">Annual Cost: ${{ annual_cost }}</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+    <p>{{ error }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Overview Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Subscriptions</h3>
+      <p class="text-3xl font-bold text-blue-600">{{ total_subscriptions }}</p>
+      <p class="text-sm text-gray-500 mt-2">Active recurring services</p>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2">Monthly Spend</h3>
+      <p class="text-3xl font-bold text-blue-600">${{ monthly_cost }}</p>
+      <p class="text-sm text-gray-500 mt-2">Total recurring monthly charges</p>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2">Annual Spend</h3>
+      <p class="text-3xl font-bold text-blue-600">${{ annual_cost }}</p>
+      <p class="text-sm text-gray-500 mt-2">Projected yearly subscription costs</p>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="text-lg font-semibold text-gray-700 mb-2">Upcoming Payments</h3>
+      <p class="text-3xl font-bold text-blue-600">{{ upcoming_payments|length }}</p>
+      <p class="text-sm text-gray-500 mt-2">Due in the next 7 days</p>
+    </div>
+  </div>
+
+  <!-- Upcoming Payments Section -->
+  {% if upcoming_payments %}
+  <div class="bg-white rounded-lg shadow mb-8">
+    <div class="border-b border-gray-200 px-6 py-4">
+      <h2 class="text-xl font-semibold text-gray-800">Upcoming Payments</h2>
+    </div>
+    <div class="px-6 py-4">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for payment in upcoming_payments %}
+            <tr class="{% if (payment.date|string)[:10] == today %}critical-date{% else %}upcoming-payment{% endif %}">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">{{ payment.description }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">${{ payment.amount }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-500">{{ payment.date }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                {% if (payment.date|string)[:10] == today %}
+                <span class="status-badge bg-red-100 text-red-800">Due Today</span>
+                {% else %}
+                <span class="status-badge status-upcoming">Upcoming</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Main Subscriptions Section -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Your Subscriptions</h2>
+    
+    {% if not patterns %}
+    <div class="bg-white rounded-lg shadow p-8 text-center">
+      <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+      </svg>
+      <h3 class="text-lg font-medium text-gray-700 mb-2">No Subscriptions Found</h3>
+      <p class="text-gray-500 mb-4">We couldn't detect any recurring subscriptions in your transaction history.</p>
+      <p class="text-gray-500">This could be because you don't have any subscriptions or you need more transaction history for our system to identify patterns.</p>
+    </div>
+    {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for pattern in patterns %}
+      <div class="bg-white rounded-lg shadow subscription-card overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <div class="flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-800 truncate">{{ pattern.description }}</h3>
+            {% if pattern.is_subscription %}
+            <span class="status-badge status-active">Subscription</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="px-6 py-4">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <p class="text-sm text-gray-500">Average Amount</p>
+              <p class="text-2xl font-bold 
+                {% if pattern.avg_amount > 50 %}amount-high
+                {% elif pattern.avg_amount > 20 %}amount-medium
+                {% else %}amount-low{% endif %}">
+                ${{ pattern.avg_amount }}
+              </p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500">Frequency</p>
+              <p class="text-lg font-medium text-gray-700">{{ pattern.interval_type }}</p>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-sm text-gray-500 mb-1">Monthly Cost</p>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+              <div class="bg-blue-600 h-2 rounded-full" style="width: {{ (pattern.monthly_cost / max_monthly_cost * 100)|int }}%"></div>
+            </div>
+            <p class="text-right text-sm text-gray-600 mt-1">${{ pattern.monthly_cost }}</p>
+          </div>
+          
+          <div class="border-t border-gray-200 pt-4">
+            <div class="flex justify-between text-sm">
+              <p class="text-gray-500">Next payment:</p>
+              <p class="font-medium text-gray-800">{{ pattern.next_date }}</p>
+            </div>
+            <div class="flex justify-between text-sm mt-1">
+              <p class="text-gray-500">Annual cost:</p>
+              <p class="font-medium text-gray-800">${{ pattern.annual_cost }}</p>
+            </div>
+            <div class="flex justify-between text-sm mt-1">
+              <p class="text-gray-500">Confidence:</p>
+              <p class="font-medium text-gray-800">{{ (pattern.confidence * 100)|int }}%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Top Expenses -->
+  {% if top_expenses %}
+  <div class="bg-white rounded-lg shadow mb-8">
+    <div class="border-b border-gray-200 px-6 py-4">
+      <h2 class="text-xl font-semibold text-gray-800">Top Recurring Expenses</h2>
+    </div>
+    <div class="px-6 py-4">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Cost</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Annual Cost</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for expense in top_expenses %}
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">{{ expense.description }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">${{ expense.monthly_cost }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">${{ expense.annual_cost }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                {% if expense.is_subscription %}
+                <span class="status-badge status-active">Subscription</span>
+                {% else %}
+                <span class="status-badge bg-gray-100 text-gray-800">Regular Expense</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Tips and Recommendations -->
+  <div class="bg-blue-50 rounded-lg p-6 border border-blue-100">
+    <h2 class="text-xl font-semibold text-blue-800 mb-4">💡 Subscription Management Tips</h2>
+    <ul class="space-y-2 text-blue-800">
+      <li class="flex items-start">
+        <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>Review your subscriptions regularly to avoid paying for services you no longer use.</span>
+      </li>
+      <li class="flex items-start">
+        <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>Look for annual payment options which often provide discounts compared to monthly payments.</span>
+      </li>
+      <li class="flex items-start">
+        <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>Consider family plans or bundles when multiple services are used by your household.</span>
+      </li>
+      <li class="flex items-start">
+        <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>Set calendar reminders for free trial expirations to avoid unexpected charges.</span>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endblock %} 

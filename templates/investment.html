@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block title %}Investment Calculator - FinancePro{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Investment Calculator</h1>
+    </div>
+
+    <div class="dashboard-section" style="background: #f8fafc; border-radius: 18px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 2.5rem 2rem; margin-top: 2rem;">
+        <div class="investment-inputs" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div class="input-row" style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                <div class="input-group" style="flex: 1; min-width: 220px;">
+                    <label for="initialInvestment">Initial Investment (₹)</label>
+                    <input type="number" id="initialInvestment" min="0" value="0" class="investment-input" placeholder="e.g. 10,000">
+                </div>
+                <div class="input-group">
+                    <label for="annualReturnRate">Annual Return Rate (%)</label>
+                    <input type="number" id="annualReturnRate" min="0" step="0.1" value="0" class="investment-input">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="investmentDuration">Investment Duration (Years)</label>
+                    <input type="number" id="investmentDuration" min="0" value="0" class="investment-input" placeholder="e.g. 10">
+                </div>
+                <div class="input-group">
+                    <label for="annualContribution">Annual Contribution (₹)</label>
+                    <input type="number" id="annualContribution" min="0" value="0" class="investment-input" placeholder="e.g. 2,000">
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Box -->
+        <div style="margin: 2rem 0 1.5rem 0; display: flex; gap: 2rem; flex-wrap: wrap;">
+            <div id="investment-summary" style="background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); padding: 1.3rem 2rem; flex: 1; min-width: 260px; display: flex; flex-direction: column; align-items: flex-start;">
+                <div style="font-size: 1.15rem; color: #555; margin-bottom: 0.4rem;">Final Value</div>
+                <div id="finalValueDisplay" style="font-size: 2rem; font-weight: bold; color: #1b6c4a;">₹0</div>
+                <div style="font-size: 0.95rem; color: #888; margin-top: 0.5rem;">Total Invested: <span id="totalInvestedDisplay">₹0</span></div>
+            </div>
+        </div>
+            <div class="chart-container" style="background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); padding: 1.5rem;">
+                <canvas id="investmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const initialInvestment = document.getElementById('initialInvestment');
+        const annualReturnRate = document.getElementById('annualReturnRate');
+        const investmentDuration = document.getElementById('investmentDuration');
+        const annualContribution = document.getElementById('annualContribution');
+        
+        // Initialize chart
+        const ctx = document.getElementById('investmentChart').getContext('2d');
+        const investmentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Investment Growth',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            // Add Rupee symbol to Y axis
+                            callback: function(value) {
+                                return '₹' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return '₹' + context.raw.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Update chart when inputs change
+        const inputs = [initialInvestment, annualReturnRate, investmentDuration, annualContribution];
+        inputs.forEach(input => {
+            input.addEventListener('input', calculateAndUpdateChart);
+        });
+        
+        function calculateAndUpdateChart() {
+            const initial = parseFloat(initialInvestment.value) || 0;
+            const rate = parseFloat(annualReturnRate.value) || 0;
+            const years = parseInt(investmentDuration.value) || 0;
+            const contribution = parseFloat(annualContribution.value) || 0;
+            
+            if (years <= 0) {
+                // Reset chart if no years selected
+                updateChart([], []);
+                document.getElementById('finalValueDisplay').textContent = '₹0';
+                document.getElementById('totalInvestedDisplay').textContent = '₹0';
+                return;
+            }
+            
+            // Calculate growth for each year
+            const yearLabels = [];
+            const investmentValues = [];
+            let currentValue = initial;
+            let totalInvested = initial;
+
+            yearLabels.push('Year 0');
+            investmentValues.push(currentValue);
+
+            for (let year = 1; year <= years; year++) {
+                currentValue = currentValue * (1 + rate / 100) + contribution;
+                totalInvested += contribution;
+                yearLabels.push('Year ' + year);
+                investmentValues.push(currentValue);
+            }
+            // Update summary box
+            document.getElementById('finalValueDisplay').textContent = '₹' + Math.round(currentValue).toLocaleString();
+            document.getElementById('totalInvestedDisplay').textContent = '₹' + Math.round(totalInvested).toLocaleString();
+            updateChart(yearLabels, investmentValues);
+        }
+        
+        function updateChart(labels, data) {
+            investmentChart.data.labels = labels;
+            investmentChart.data.datasets[0].data = data;
+            investmentChart.update();
+        }
+        
+        // Initialize with empty chart
+        calculateAndUpdateChart();
+    });
+</script>
+{% endblock %} 

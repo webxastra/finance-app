@@ -1,0 +1,935 @@
+{% extends 'layout.html' %}
+
+{% block title %}Savings Goals{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Savings Goals</h1>
+            <button id="addSavingBtn" class="action-button">
+                <i class="fas fa-plus"></i> Add New Goal
+            </button>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-chart-line"></i> Savings Overview</h2>
+            <div class="savings-summary">
+                <div class="summary-card total-goals">
+                    <h3 class="summary-card-title">Total Goals</h3>
+                    <div class="summary-card-amount" id="totalGoals">{{ savings|length }}</div>
+                </div>
+                <div class="summary-card total-saved">
+                    <h3 class="summary-card-title">Total Saved</h3>
+                    <div class="summary-card-amount" id="totalSaved">₹{{ savings|sum(attribute='current_amount')|round(2) }}</div>
+                </div>
+                <div class="summary-card total-target">
+                    <h3 class="summary-card-title">Total Target</h3>
+                    <div class="summary-card-amount" id="totalTarget">₹{{ savings|sum(attribute='target_amount')|round(2) }}</div>
+                </div>
+                <div class="summary-card savings-progress">
+                    <h3 class="summary-card-title">Overall Progress</h3>
+                    <div class="progress-container">
+                        {% if savings and savings|sum(attribute='target_amount') > 0 %}
+                            {% set overall_progress = (savings|sum(attribute='current_amount') / savings|sum(attribute='target_amount') * 100) %}
+                        {% else %}
+                            {% set overall_progress = 0 %}
+                        {% endif %}
+                        <div class="progress-bar" {% if overall_progress > 0 %}style="width: {{ overall_progress|round(2) }}%"{% else %}style="width: 0%"{% endif %}></div>
+                        <div class="progress-text">{{ overall_progress|round(2) }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-piggy-bank"></i> Your Savings Goals</h2>
+            
+            {% if savings %}
+                <div class="savings-grid">
+                    {% for saving in savings %}
+                        <div class="saving-card" data-id="{{ saving.id }}">
+                            <div class="saving-header">
+                                <h3 class="saving-title">{{ saving.name }}</h3>
+                                <div class="saving-actions">
+                                    <button class="edit-saving-btn" data-id="{{ saving.id }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="delete-saving-btn" data-id="{{ saving.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="saving-progress">
+                                <div class="progress-container">
+                                    {% if saving.target_amount > 0 %}
+                                        {% set progress = (saving.current_amount / saving.target_amount * 100) %}
+                                    {% else %}
+                                        {% set progress = 0 %}
+                                    {% endif %}
+                                    <div class="progress-bar" {% if progress > 0 %}style="width: {{ progress|round(2) }}%"{% else %}style="width: 0%"{% endif %}></div>
+                                    <div class="progress-text">{{ progress|round(2) }}%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="saving-details">
+                                <div class="saving-amount">
+                                    <div class="current-amount">₹{{ saving.current_amount|round(2) }}</div>
+                                    <div class="target-amount">of ₹{{ saving.target_amount|round(2) }}</div>
+                                </div>
+                                
+                                {% if saving.target_date %}
+                                    <div class="saving-date">
+                                        <i class="fas fa-calendar-alt"></i> Target: {{ saving.target_date.strftime('%d-%m-%Y') }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data-message">
+                    <i class="fas fa-info-circle"></i>
+                    <p>You don't have any savings goals yet. Click "Add New Goal" to get started.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-lightbulb"></i> Savings Tips</h2>
+            <ul class="tips-list">
+                <li>Follow the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings.</li>
+                <li>Set up automatic transfers to your savings account on payday.</li>
+                <li>Break down large savings goals into smaller, achievable milestones.</li>
+                <li>Keep an emergency fund separate from other savings goals.</li>
+                <li>Review and adjust your savings goals quarterly to stay on track.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Add Saving Modal -->
+<div id="addSavingModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-piggy-bank"></i> <span id="modalAction">Add</span> Saving Goal</h2>
+        
+        <form id="savingForm" action="/api/savings" method="POST">
+            <input type="hidden" id="savingId" name="savingId" value="">
+            
+            <div class="form-group">
+                <label for="savingName">Goal Name</label>
+                <input type="text" id="savingName" name="name" required placeholder="e.g., Emergency Fund">
+            </div>
+            
+            <div class="form-group">
+                <label for="targetAmount">Target Amount (₹)</label>
+                <input type="number" id="targetAmount" name="target_amount" required placeholder="e.g., 100000" min="0" step="0.01">
+            </div>
+            
+            <div class="form-group">
+                <label for="currentAmount">Current Amount (₹)</label>
+                <input type="number" id="currentAmount" name="current_amount" placeholder="Starting amount" min="0" step="0.01" value="0" readonly>
+                <p class="form-help-text">Start with zero and add transactions later</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="targetDate">Target Date (Optional)</label>
+                <input type="date" id="targetDate" name="target_date">
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="isRecurring" name="is_recurring"> 
+                    Make this a recurring saving
+                </label>
+                <p class="form-help-text">Recurring savings will appear in your bills list for regular contributions</p>
+            </div>
+            
+            <div id="recurringOptions" style="display: none;">
+                <div class="form-group">
+                    <label for="recurringAmount">Recurring Amount (₹)</label>
+                    <input type="number" id="recurringAmount" name="recurring_amount" placeholder="e.g., 5000" min="0" step="0.01">
+                </div>
+                
+                <div class="form-group">
+                    <label for="recurringFrequency">Frequency</label>
+                    <select id="recurringFrequency" name="recurring_frequency">
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="createExpense" name="create_expense" checked> 
+                        Record as expense when contributing
+                    </label>
+                    <p class="form-help-text">Each contribution will be recorded as an expense in your transaction history</p>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button type="button" id="cancelBtn" class="cancel-btn">Cancel</button>
+                <button type="submit" class="submit-btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h2>
+        <p>Are you sure you want to delete this saving goal? This action cannot be undone.</p>
+        
+        <div class="form-buttons">
+            <button type="button" id="cancelDeleteBtn" class="cancel-btn">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="delete-btn">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const addSavingBtn = document.getElementById('addSavingBtn');
+    const addSavingModal = document.getElementById('addSavingModal');
+    const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+    const closeModal = document.querySelector('.close-modal');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const savingForm = document.getElementById('savingForm');
+    const modalAction = document.getElementById('modalAction');
+    const isRecurringCheckbox = document.getElementById('isRecurring');
+    const recurringOptions = document.getElementById('recurringOptions');
+    
+    let currentSavingId = null;
+    
+    // Ensure all modals are hidden on page load
+    addSavingModal.style.display = 'none';
+    deleteConfirmModal.style.display = 'none';
+    
+    // Toggle recurring options when checkbox is clicked
+    isRecurringCheckbox.addEventListener('change', function() {
+        recurringOptions.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Function to hide all modals
+    function hideAllModals() {
+        addSavingModal.style.display = 'none';
+        deleteConfirmModal.style.display = 'none';
+        
+        // If there's a transaction modal, hide it too
+        const transactionModal = document.getElementById('transactionModal');
+        if (transactionModal) {
+            transactionModal.style.display = 'none';
+        }
+    }
+    
+    // Show add saving modal
+    addSavingBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Reset form
+        savingForm.reset();
+        document.getElementById('savingId').value = '';
+        modalAction.textContent = 'Add';
+        
+        // Hide recurring options initially
+        recurringOptions.style.display = 'none';
+        
+        // Hide all modals first
+        hideAllModals();
+        
+        // Then show the add modal
+        addSavingModal.style.display = 'block';
+    });
+    
+    // Close modals with X button
+    closeModal.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideAllModals();
+    });
+    
+    // Cancel button in add/edit modal
+    cancelBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideAllModals();
+    });
+    
+    // Cancel button in delete modal
+    cancelDeleteBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        hideAllModals();
+    });
+    
+    // Handle form submission
+    savingForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        // Get form data
+        const formData = {};
+        formData.name = document.getElementById('savingName').value;
+        formData.target_amount = parseFloat(document.getElementById('targetAmount').value);
+        
+        // Get saving ID if editing existing goal
+        const savingId = document.getElementById('savingId').value;
+        
+        // For new goals, always set current_amount to 0
+        // For existing goals, use the value from the form
+        if (savingId) {
+            formData.current_amount = parseFloat(document.getElementById('currentAmount').value || 0);
+        } else {
+            formData.current_amount = 0;
+        }
+        
+        // Add target date if provided
+        const targetDate = document.getElementById('targetDate').value;
+        if (targetDate) {
+            formData.target_date = targetDate;
+        }
+        
+        // Add recurring options if checked
+        if (document.getElementById('isRecurring').checked) {
+            const recurringAmount = parseFloat(document.getElementById('recurringAmount').value || 0);
+            const recurringFrequency = document.getElementById('recurringFrequency').value;
+            
+            // Validate recurring fields
+            if (!recurringAmount || recurringAmount <= 0) {
+                alert('Please enter a valid recurring amount');
+                return;
+            }
+            
+            if (!recurringFrequency) {
+                alert('Please select a recurring frequency');
+                return;
+            }
+            
+            formData.is_recurring = true;
+            formData.recurring_amount = recurringAmount;
+            formData.recurring_frequency = recurringFrequency;
+        }
+        
+        try {
+            let url = '/api/savings';
+            let method = 'POST';
+            
+            // If updating, change URL and method
+            if (savingId) {
+                url = `/api/savings/${savingId}`;
+                method = 'PUT';
+            }
+            
+            // Send request
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                // No need for separate call to make-recurring endpoint anymore
+                // The main API now handles bill creation
+                
+                // Hide modals before reload
+                hideAllModals();
+                // Reload page to show updated data
+                window.location.reload();
+            } else {
+                const data = await response.json();
+                const errorMessage = data.message || data.error || 'Something went wrong';
+                alert(`Error: ${errorMessage}`);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again later.');
+        }
+    });
+    
+    // Add event handlers to edit buttons after page load
+    document.querySelectorAll('.edit-saving-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const savingId = this.getAttribute('data-id');
+            
+            try {
+                // Get saving details
+                const response = await fetch(`/api/savings/${savingId}`);
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    const saving = data.saving;
+                    
+                    // Populate form
+                    document.getElementById('savingId').value = saving.id;
+                    document.getElementById('savingName').value = saving.name;
+                    document.getElementById('targetAmount').value = saving.target_amount;
+                    
+                    // Enable editing current amount for existing goals
+                    const currentAmountField = document.getElementById('currentAmount');
+                    currentAmountField.value = saving.current_amount;
+                    currentAmountField.readOnly = false;
+                    
+                    if (saving.target_date) {
+                        document.getElementById('targetDate').value = saving.target_date.split('T')[0];
+                    } else {
+                        document.getElementById('targetDate').value = '';
+                    }
+                    
+                    // Set recurring options if applicable
+                    if (saving.is_recurring) {
+                        document.getElementById('isRecurring').checked = true;
+                        document.getElementById('recurringAmount').value = saving.recurring_amount;
+                        document.getElementById('recurringFrequency').value = saving.recurring_frequency;
+                        recurringOptions.style.display = 'block';
+                    } else {
+                        document.getElementById('isRecurring').checked = false;
+                        recurringOptions.style.display = 'none';
+                    }
+                    
+                    // Update modal title
+                    modalAction.textContent = 'Edit';
+                    
+                    // Hide all modals first
+                    hideAllModals();
+                    
+                    // Show edit modal
+                    addSavingModal.style.display = 'block';
+                } else {
+                    alert(`Error: ${data.error || 'Something went wrong'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again later.');
+            }
+        });
+    });
+    
+    // Add event handlers to delete buttons after page load
+    document.querySelectorAll('.delete-saving-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Store ID for deletion
+            currentSavingId = this.getAttribute('data-id');
+            
+            // Hide all modals first
+            hideAllModals();
+            
+            // Show delete confirmation
+            deleteConfirmModal.style.display = 'block';
+        });
+    });
+    
+    // Confirm delete button
+    confirmDeleteBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        
+        if (!currentSavingId) return;
+        
+        try {
+            const response = await fetch(`/api/savings/${currentSavingId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                // Hide modals before reload
+                hideAllModals();
+                // Reload page to show updated data
+                window.location.reload();
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.error || 'Something went wrong'}`);
+                hideAllModals();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again later.');
+            hideAllModals();
+        }
+    });
+    
+    // Enhance saving cards to show transaction options when clicked
+    document.querySelectorAll('.saving-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Ignore if clicking on action buttons
+            if (e.target.closest('.saving-actions') || 
+                e.target.closest('.edit-saving-btn') || 
+                e.target.closest('.delete-saving-btn')) {
+                return;
+            }
+            
+            const savingId = this.getAttribute('data-id');
+            showTransactionOptions(savingId);
+        });
+    });
+    
+    // Function to show transaction options modal
+    async function showTransactionOptions(savingId) {
+        // Create transaction modal if it doesn't exist
+        let transactionModal = document.getElementById('transactionModal');
+        
+        if (!transactionModal) {
+            transactionModal = document.createElement('div');
+            transactionModal.id = 'transactionModal';
+            transactionModal.className = 'modal';
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.className = 'modal-content';
+            
+            // Add close button
+            const closeBtn = document.createElement('span');
+            closeBtn.className = 'close-modal';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.addEventListener('click', hideAllModals);
+            
+            modalContent.appendChild(closeBtn);
+            
+            // Create tabs
+            const tabsContainer = document.createElement('div');
+            tabsContainer.className = 'modal-tabs';
+            tabsContainer.innerHTML = `
+                <button class="tab-btn active" data-tab="add-transaction">Add Transaction</button>
+                <button class="tab-btn" data-tab="transaction-history">Transaction History</button>
+            `;
+            
+            // Create content container
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'tab-content-container';
+            
+            // Add transaction form
+            const addTransactionContent = document.createElement('div');
+            addTransactionContent.className = 'tab-content active';
+            addTransactionContent.setAttribute('data-tab', 'add-transaction');
+            addTransactionContent.innerHTML = `
+                <h2 class="modal-title"><i class="fas fa-plus-circle"></i> Add Transaction</h2>
+                <form id="transactionForm">
+                    <input type="hidden" id="transactionSavingId" value="${savingId}">
+                    
+                    <div class="form-group">
+                        <label for="transactionAmount">Amount (₹)</label>
+                        <input type="number" id="transactionAmount" name="amount" required min="0.01" step="0.01" placeholder="Enter amount">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transactionDate">Date</label>
+                        <input type="date" id="transactionDate" name="date">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="transactionDescription">Description (Optional)</label>
+                        <input type="text" id="transactionDescription" name="description" placeholder="e.g., Monthly contribution">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="transactionExpense" name="create_expense" checked>
+                            Record as expense (will be added to your expense list)
+                        </label>
+                    </div>
+                    
+                    <div class="form-buttons">
+                        <button type="button" class="cancel-btn transaction-cancel">Cancel</button>
+                        <button type="submit" class="submit-btn">Add Transaction</button>
+                    </div>
+                </form>
+            `;
+            
+            // Transaction history content
+            const historyContent = document.createElement('div');
+            historyContent.className = 'tab-content';
+            historyContent.setAttribute('data-tab', 'transaction-history');
+            historyContent.innerHTML = `
+                <h2 class="modal-title"><i class="fas fa-history"></i> Transaction History</h2>
+                <div id="transactionHistory" class="transaction-history">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Loading transactions...
+                    </div>
+                </div>
+            `;
+            
+            // Add content to container
+            contentContainer.appendChild(addTransactionContent);
+            contentContainer.appendChild(historyContent);
+            
+            // Assemble modal
+            modalContent.appendChild(tabsContainer);
+            modalContent.appendChild(contentContainer);
+            transactionModal.appendChild(modalContent);
+            
+            // Add to document
+            document.body.appendChild(transactionModal);
+            
+            // Setup tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // Update active button
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update active content
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        if (content.getAttribute('data-tab') === tabId) {
+                            content.classList.add('active');
+                            
+                            // If switching to history tab, load transactions
+                            if (tabId === 'transaction-history') {
+                                loadTransactionHistory(savingId);
+                            }
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
+                });
+            });
+            
+            // Setup transaction form
+            const transactionForm = document.getElementById('transactionForm');
+            transactionForm.addEventListener('submit', addTransaction);
+            
+            // Setup cancel button
+            document.querySelector('.transaction-cancel').addEventListener('click', hideAllModals);
+            
+            // Set default date to today
+            document.getElementById('transactionDate').valueAsDate = new Date();
+        } else {
+            // Update saving ID
+            document.getElementById('transactionSavingId').value = savingId;
+            
+            // Reset to first tab
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === 'add-transaction') {
+                    btn.classList.add('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+                if (content.getAttribute('data-tab') === 'add-transaction') {
+                    content.classList.add('active');
+                }
+            });
+            
+            // Reset form
+            document.getElementById('transactionForm').reset();
+            document.getElementById('transactionDate').valueAsDate = new Date();
+            document.getElementById('transactionExpense').checked = true;
+        }
+        
+        // Show the modal
+        hideAllModals(); // Hide any other modals
+        transactionModal.style.display = 'block';
+    }
+    
+    // Function to handle adding a transaction
+    async function addTransaction(e) {
+        e.preventDefault();
+        
+        const savingId = document.getElementById('transactionSavingId').value;
+        const amount = parseFloat(document.getElementById('transactionAmount').value);
+        const date = document.getElementById('transactionDate').value;
+        const description = document.getElementById('transactionDescription').value;
+        const createExpense = document.getElementById('transactionExpense').checked;
+        
+        if (!amount || amount <= 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/savings/${savingId}/transactions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount,
+                    date,
+                    description,
+                    create_expense: createExpense
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Hide modal before reload
+                hideAllModals();
+                
+                // Reload page to show updated data
+                window.location.reload();
+            } else {
+                // Improved error handling with better messages
+                const errorMessage = data.message || data.error || 'Something went wrong';
+                console.error('Transaction error:', data);
+                alert(`Error: ${errorMessage}`);
+            }
+        } catch (error) {
+            console.error('Error adding transaction:', error);
+            alert('An error occurred while adding the transaction. Please try again later.');
+        }
+    }
+    
+    // Function to load transaction history
+    async function loadTransactionHistory(savingId) {
+        const historyContainer = document.getElementById('transactionHistory');
+        
+        try {
+            const response = await fetch(`/api/savings/${savingId}/transactions`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.transactions && data.transactions.length > 0) {
+                    // Sort transactions by date (newest first)
+                    const transactions = data.transactions.sort((a, b) => {
+                        return new Date(b.date) - new Date(a.date);
+                    });
+                    
+                    // Create transaction list
+                    let html = '<ul class="transaction-list">';
+                    
+                    transactions.forEach(transaction => {
+                        const date = new Date(transaction.date);
+                        const formattedDate = date.toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                        });
+                        
+                        html += `
+                            <li class="transaction-item" data-id="${transaction.id}">
+                                <div class="transaction-info">
+                                    <div class="transaction-amount">₹${transaction.amount.toFixed(2)}</div>
+                                    <div class="transaction-date">${formattedDate}</div>
+                                </div>
+                                <div class="transaction-details">
+                                    <div class="transaction-description">${transaction.description || 'No description'}</div>
+                                    ${transaction.expense_id ? '<div class="transaction-tag">Expense</div>' : ''}
+                                    ${transaction.bill_id ? '<div class="transaction-tag">Bill Payment</div>' : ''}
+                                </div>
+                                <button class="delete-transaction-btn" data-id="${transaction.id}" data-saving-id="${savingId}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </li>
+                        `;
+                    });
+                    
+                    html += '</ul>';
+                    
+                    // Update container
+                    historyContainer.innerHTML = html;
+                    
+                    // Setup delete buttons
+                    document.querySelectorAll('.delete-transaction-btn').forEach(btn => {
+                        btn.addEventListener('click', async function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const transactionId = this.getAttribute('data-id');
+                            const savingId = this.getAttribute('data-saving-id');
+                            
+                            if (confirm('Are you sure you want to delete this transaction?')) {
+                                try {
+                                    const response = await fetch(`/api/savings/${savingId}/transactions/${transactionId}`, {
+                                        method: 'DELETE'
+                                    });
+                                    
+                                    if (response.ok) {
+                                        // Hide modal before reload
+                                        hideAllModals();
+                                        
+                                        // Reload page to show updated data
+                                        window.location.reload();
+                                    } else {
+                                        const data = await response.json();
+                                        alert(`Error: ${data.error || 'Something went wrong'}`);
+                                    }
+                                } catch (error) {
+                                    console.error('Error:', error);
+                                    alert('An error occurred. Please try again later.');
+                                }
+                            }
+                        });
+                    });
+                } else {
+                    historyContainer.innerHTML = `
+                        <div class="no-data-message">
+                            <i class="fas fa-info-circle"></i>
+                            <p>No transactions found for this saving goal.</p>
+                        </div>
+                    `;
+                }
+            } else {
+                const errorData = await response.json();
+                historyContainer.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Error loading transactions: ${errorData.error || 'Something went wrong'}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            historyContainer.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading transactions: ${error.message || 'An error occurred'}</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Helper function to fetch saving details
+    async function fetchSaving(savingId) {
+        try {
+            const response = await fetch(`/api/savings/${savingId}`);
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                return data.saving;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching saving:', error);
+            return null;
+        }
+    }
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', function(event) {
+        const modals = [addSavingModal, deleteConfirmModal, document.getElementById('transactionModal')];
+        modals.forEach(modal => {
+            if (modal && event.target === modal) {
+                hideAllModals();
+            }
+        });
+    });
+
+    // Add EMI calculation functionality when creating/editing a saving
+    function setupEmiCalculation() {
+        const savingForm = document.getElementById('savingForm');
+        
+        if (!savingForm) return;
+        
+        const targetAmountInput = document.getElementById('targetAmount');
+        const currentAmountInput = document.getElementById('currentAmount');
+        const targetDateInput = document.getElementById('targetDate');
+        const isRecurringCheckbox = document.getElementById('isRecurring');
+        const recurringFrequencySelect = document.getElementById('recurringFrequency');
+        const recurringAmountInput = document.getElementById('recurringAmount');
+        const recurringAmountGroup = document.getElementById('recurringAmountGroup');
+        const recurringCalculationText = document.createElement('div');
+        
+        recurringCalculationText.className = 'emi-calculation-info';
+        recurringCalculationText.style.fontSize = '0.9em';
+        recurringCalculationText.style.marginTop = '5px';
+        recurringCalculationText.style.color = '#666';
+        
+        // Insert calculation info text after the recurring amount field
+        if (recurringAmountGroup) {
+            recurringAmountGroup.appendChild(recurringCalculationText);
+        }
+        
+        // Function to calculate and update EMI amount
+        function calculateEmi() {
+            // Only calculate if recurring is checked and we have target amount and date
+            if (!isRecurringCheckbox.checked) {
+                recurringCalculationText.textContent = '';
+                return;
+            }
+            
+            const targetAmount = parseFloat(targetAmountInput.value);
+            const currentAmount = parseFloat(currentAmountInput.value || 0);
+            const targetDate = targetDateInput.value;
+            const frequency = recurringFrequencySelect.value;
+            
+            if (!targetAmount || !targetDate) {
+                recurringCalculationText.textContent = 'Please enter target amount and date to calculate EMI';
+                return;
+            }
+            
+            // Calculate months until target date
+            const now = new Date();
+            const targetDateObj = new Date(targetDate);
+            
+            if (targetDateObj <= now) {
+                recurringCalculationText.textContent = 'Target date must be in the future';
+                return;
+            }
+            
+            // Show calculating message
+            recurringCalculationText.textContent = 'Calculating...';
+            
+            // Make API call to calculate EMI
+            fetch('/api/savings/calculate-emi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    target_amount: targetAmount,
+                    current_amount: currentAmount,
+                    target_date: targetDate,
+                    frequency: frequency
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update recurring amount field with calculated EMI
+                    recurringAmountInput.value = data.emi_amount;
+                    
+                    // Show calculation details
+                    recurringCalculationText.innerHTML = `
+                        <strong>Based on your inputs:</strong><br>
+                        • Monthly contribution: ₹${data.emi_amount.toLocaleString('en-IN')}<br>
+                        • Number of payments: ${data.number_of_payments}<br>
+                        • Amount needed: ₹${data.amount_needed.toLocaleString('en-IN')}
+                    `;
+                } else {
+                    recurringCalculationText.textContent = data.message || 'Error calculating EMI';
+                }
+            })
+            .catch(error => {
+                console.error('Error calculating EMI:', error);
+                recurringCalculationText.textContent = 'Error calculating EMI';
+            });
+        }
+        
+        // Add event listeners to inputs that affect EMI calculation
+        targetAmountInput.addEventListener('input', calculateEmi);
+        currentAmountInput.addEventListener('input', calculateEmi);
+        targetDateInput.addEventListener('change', calculateEmi);
+        recurringFrequencySelect.addEventListener('change', calculateEmi);
+        
+        // Recalculate when recurring checkbox is toggled
+        isRecurringCheckbox.addEventListener('change', function() {
+            if (this.checked && targetDateInput.value) {
+                calculateEmi();
+            } else {
+                recurringCalculationText.textContent = '';
+            }
+        });
+    }
+
+    // Call the function when document is ready
+    setupEmiCalculation();
+});
+</script>
+{% endblock %} 

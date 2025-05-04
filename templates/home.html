@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - FinancePro{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <h1 class="hero-title">Manage Your Finances with Ease</h1>
+    <p class="hero-subtitle">FinancePro helps you track your expenses, manage your budget, and grow your savings with our easy-to-use tools. Simplify your financial life.</p>
+    <a href="{{ url_for('main.balance') }}" class="cta-button">Get Started for Free</a>
+</section>
+
+<!-- Features Section -->
+<section class="feature-section">
+    <h2 class="section-title">Why Choose FinancePro?</h2>
+    <p class="section-description">Our app comes with a set of features designed to give you control over your finances.</p>
+    
+    <div class="features">
+        <div class="feature-card">
+            <img src="{{ url_for('static', filename='images/track-expenses.jpg') }}" alt="Track Expenses" class="feature-img">
+            <h3 class="feature-title">Track Expenses</h3>
+            <p class="feature-description">Easily keep track of all your transactions and manage your spending habits.</p>
+        </div>
+        
+        <div class="feature-card">
+            <img src="{{ url_for('static', filename='images/budget-planning.jpg') }}" alt="Set Budgets" class="feature-img">
+            <h3 class="feature-title">Set Budgets</h3>
+            <p class="feature-description">Plan your financial goals and set monthly budgets to keep your spending on track.</p>
+        </div>
+        
+        <div class="feature-card">
+            <img src="{{ url_for('static', filename='images/savings.jpg') }}" alt="Save for the Future" class="feature-img">
+            <h3 class="feature-title">Save for the Future</h3>
+            <p class="feature-description">Use our savings tools to set aside money for long-term financial security.</p>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="about-section">
+    <h2 class="section-title">About FinancePro</h2>
+    <p class="section-description">
+        FinancePro was created to simplify financial management for individuals and businesses. Our mission is to provide easy-to-use tools that empower users to take control of their financial futures. Whether you want to track daily expenses, plan for retirement, or set aside money for future investments, FinancePro has everything you need in one convenient place.
+    </p>
+</section>
+
+<!-- Contact Section -->
+<section class="contact-section">
+    <h2 class="section-title">Get in Touch</h2>
+    <p class="section-description">Have any questions or need help? Reach out to us, and we'll be happy to assist you!</p>
+    <a href="#" class="contact-button">Contact Us</a>
+</section>
+{% endblock %} 

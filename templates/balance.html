@@ -1,0 +1,1130 @@
+{% extends "layout.html" %}
+
+{% block title %}Balance - FinancePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Financial Dashboard</h1>
+</div>
+
+<div class="dashboard-section">
+    <h2 class="dashboard-title">Manage Your Finances</h2>
+    
+    <div class="finance-summary">
+        <div class="finance-card salary">
+            <div class="finance-card-title">Salary</div>
+            <div class="finance-card-amount">₹<span id="salary-amount">--</span></div>
+        </div>
+        
+        <div class="finance-card expenses">
+            <div class="finance-card-title">Expenses</div>
+            <div class="finance-card-amount">₹<span id="expenses-amount">--</span></div>
+        </div>
+        
+        <div class="finance-card balance">
+            <div class="finance-card-title">Remaining Balance</div>
+            <div class="finance-card-amount">₹<span id="balance-amount">--</span></div>
+        </div>
+    </div>
+    
+    <button class="action-button" id="addExpenseBtn">
+        <span>+</span> Add Expense
+    </button>
+</div>
+
+<div class="dashboard-section">
+    <h2 class="dashboard-title">Your Expenses</h2>
+    
+    <div class="expenses-list" id="expenses-container">
+        <p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>
+        <!-- Expenses will be dynamically added here -->
+    </div>
+</div>
+
+<!-- Add Expense Modal (Hidden by default) -->
+<div class="modal" id="expenseModal" style="display: none;">
+    <h2 class="modal-title">Add Expense</h2>
+    
+    <form id="expenseForm">
+        <div class="form-group">
+            <input type="date" id="expenseDate" name="date" required>
+        </div>
+        
+        <div class="form-group">
+            <input type="number" id="expenseAmount" name="amount" placeholder="Enter Amount" required>
+        </div>
+        
+        <div class="form-group">
+            <input type="text" id="expenseDescription" name="description" placeholder="Expense Description (optional for AI categorization)">
+            <div id="aiCategoryBadge" class="ai-badge" style="display: none;">
+                <i class="fas fa-robot"></i> <span id="aiCategoryText"></span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <select id="expenseCategory" name="category">
+                <option value="" selected>Select Category (or let AI categorize)</option>
+                <option value="Food & Dining">Food & Dining</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Housing">Housing</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Personal">Personal</option>
+                <option value="Education">Education</option>
+                <option value="Travel">Travel</option>
+                <option value="Miscellaneous">Miscellaneous</option>
+            </select>
+            <button type="button" id="aiCategorizeBtn" class="ai-categorize-btn">
+                <i class="fas fa-magic"></i> Predict Category
+            </button>
+        </div>
+        
+        <div class="modal-buttons">
+            <button type="button" class="modal-cancel" id="cancelExpenseBtn">Cancel</button>
+            <button type="submit" class="modal-add">Add</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        /* DOM Elements */
+        const addExpenseBtn = document.getElementById('addExpenseBtn');
+        const expenseModal = document.getElementById('expenseModal');
+        const cancelExpenseBtn = document.getElementById('cancelExpenseBtn');
+        const expenseForm = document.getElementById('expenseForm');
+        const expensesContainer = document.getElementById('expenses-container');
+        const noExpensesMessage = document.getElementById('no-expenses-message');
+        const salaryAmountElem = document.getElementById('salary-amount');
+        const expensesAmountElem = document.getElementById('expenses-amount');
+        const balanceAmountElem = document.getElementById('balance-amount');
+        const expenseDescription = document.getElementById('expenseDescription');
+        const expenseCategory = document.getElementById('expenseCategory');
+        const aiCategorizeBtn = document.getElementById('aiCategorizeBtn');
+        const aiCategoryBadge = document.getElementById('aiCategoryBadge');
+        const aiCategoryText = document.getElementById('aiCategoryText');
+        
+        /* Default today's date in the date input */
+        document.getElementById('expenseDate').valueAsDate = new Date();
+        
+        /* Show modal when Add Expense button is clicked */
+        addExpenseBtn.addEventListener('click', function() {
+            expenseModal.style.display = 'block';
+        });
+        
+        /* Hide modal when Cancel button is clicked */
+        cancelExpenseBtn.addEventListener('click', function() {
+            expenseModal.style.display = 'none';
+            expenseForm.reset();
+            document.getElementById('expenseDate').valueAsDate = new Date();
+            aiCategoryBadge.style.display = 'none';
+        });
+        
+        /* AI categorize button event */
+        aiCategorizeBtn.addEventListener('click', function() {
+            predictCategory();
+        });
+        
+        /* Description input event to suggest category as user types */
+        let typingTimer;
+        expenseDescription.addEventListener('keyup', function() {
+            clearTimeout(typingTimer);
+            if (expenseDescription.value) {
+                typingTimer = setTimeout(predictCategory, 1000);
+            } else {
+                aiCategoryBadge.style.display = 'none';
+            }
+        });
+        
+        /* Function to predict category using AI */
+        async function predictCategory() {
+            const description = expenseDescription.value.trim();
+            const amount = parseFloat(document.getElementById('expenseAmount').value) || 0;
+            
+            if (description.length < 3) {
+                aiCategoryBadge.style.display = 'none';
+                return;
+            }
+            
+            try {
+                console.log('Calling AI categorize API with:', {description, amount});
+                const response = await fetch('/api/ai/categorize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: description,
+                        amount: amount
+                    })
+                });
+                
+                console.log('API response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('API response data:', data);
+                    
+                    if (data.category) {
+                        // Store the predicted category and confidence for later comparison
+                        expenseForm.setAttribute('data-ai-predicted-category', data.category);
+                        expenseForm.setAttribute('data-ai-confidence', data.confidence.toString());
+                        
+                        // Debug: Confirm attribute was set correctly
+                        console.log('Set AI category attribute:', {
+                            predicted: expenseForm.getAttribute('data-ai-predicted-category'),
+                            confidence: expenseForm.getAttribute('data-ai-confidence')
+                        });
+                        
+                        // Display AI prediction badge
+                        aiCategoryText.textContent = `${data.category} (${Math.round(data.confidence * 100)}%)`;
+                        aiCategoryBadge.style.display = 'inline-flex';
+                        
+                        // Set the confidence class
+                        if (data.confidence > 0.8) {
+                            aiCategoryBadge.className = 'ai-badge high-confidence';
+                        } else if (data.confidence > 0.5) {
+                            aiCategoryBadge.className = 'ai-badge medium-confidence';
+                        } else {
+                            aiCategoryBadge.className = 'ai-badge low-confidence';
+                        }
+                        
+                        // Also select the predicted category in the dropdown
+                        const categoryDropdown = document.getElementById('expenseCategory');
+                        const options = categoryDropdown.options;
+                        
+                        for (let i = 0; i < options.length; i++) {
+                            if (options[i].value === data.category) {
+                                categoryDropdown.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    } else {
+                        console.log('No category in response');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('API error response:', errorText);
+                }
+            } catch (error) {
+                console.error('Error predicting category:', error);
+                aiCategoryBadge.style.display = 'none';
+            }
+        }
+        
+        /* Function to submit a correction to the AI */
+        async function submitCategoryCorrection(description, correctCategory, amount, predictedCategory) {
+            try {
+                // Ensure we have all required data
+                if (!description || !correctCategory || !predictedCategory) {
+                    console.error('Cannot submit correction: Missing required data', {
+                        description,
+                        correctCategory,
+                        predictedCategory
+                    });
+                    return false;
+                }
+                
+                const correctionData = {
+                    description: description,
+                    predicted_category: predictedCategory,
+                    correct_category: correctCategory,
+                    amount: amount
+                };
+                
+                console.log('Submitting correction:', correctionData);
+                const jsonPayload = JSON.stringify(correctionData);
+                console.log('JSON payload:', jsonPayload);
+                
+                const response = await fetch('/api/ai/correction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonPayload
+                });
+                
+                console.log('Correction API response status:', response.status);
+                
+                // Try to get response body as JSON or text
+                let responseBody;
+                try {
+                    responseBody = await response.json();
+                    console.log('Correction API response body:', responseBody);
+                } catch (jsonError) {
+                    // If can't parse as JSON, get as text
+                    const textBody = await response.text();
+                    console.log('Correction API response text:', textBody);
+                    responseBody = { message: textBody };
+                }
+                
+                if (response.ok) {
+                    console.log('AI correction submitted successfully. Details:', responseBody);
+                    
+                    // Check if actually saved to database or just to trainer memory
+                    if (responseBody && !responseBody.db_saved) {
+                        console.warn('Correction was saved to trainer memory but not to database');
+                    }
+                    
+                    return true;
+                } else {
+                    console.error('Failed to submit AI correction. Status:', response.status);
+                    console.error('Error details:', responseBody);
+                    
+                    // Check for specific error cases
+                    if (responseBody && responseBody.message === "No correction needed or failed to add correction") {
+                        console.log('The server determined that this correction was not needed or could not be applied.');
+                        // Return true to still show the notification, even though the correction wasn't stored
+                        return true;
+                    }
+                    
+                    // Alert the user with a more detailed error message
+                    const errorMsg = responseBody && responseBody.message 
+                        ? responseBody.message 
+                        : 'Unknown server error';
+                    
+                    alert("Failed to save your category correction. The AI will still use it for this transaction, but it won't be stored for retraining.\n\nError: " + errorMsg);
+                    
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error submitting correction:', error);
+                console.error(error.stack || 'No stack trace available');
+                return false;
+            }
+        }
+        
+        /* Initialize data */
+        let userData = null;
+        let expenses = [];
+        
+        /* Function to get current user ID */
+        function getCurrentUserId() {
+            try {
+                // The template should have passed the current user ID
+                const userId = {{ current_user.id }};
+                return userId;
+            } catch (error) {
+                console.error('Error getting current user ID from template:', error);
+                // Return null to indicate we couldn't get the ID
+                return null;
+            }
+        }
+        
+        /* Load user data */
+        async function loadUserData() {
+            try {
+                const userId = getCurrentUserId();
+                let userResponse;
+                
+                // Try fetching user data with ID if we have it
+                if (userId) {
+                    userResponse = await fetch(`/api/users/${userId}`);
+                } else {
+                    // Try the current user endpoint
+                    userResponse = await fetch('/api/user/current');
+                }
+                
+                if (userResponse && userResponse.ok) {
+                    const userData_basic = await userResponse.json();
+                    userData = userData_basic.user;
+                } else {
+                    console.warn('Failed to load user data with first attempt, trying current user endpoint');
+                    // Fallback to current user endpoint if we haven't tried it yet
+                    if (userId) {
+                        const currentUserResponse = await fetch('/api/user/current');
+                        
+                        if (currentUserResponse.ok) {
+                            const userData_basic = await currentUserResponse.json();
+                            userData = userData_basic.user;
+                        } else {
+                            throw new Error('Failed to load user data from all endpoints');
+                        }
+                    } else {
+                        throw new Error('Failed to load user data from all endpoints');
+                    }
+                }
+                
+                // After successfully getting user data, fetch income data
+                /* Then fetch current month's income data */
+                const incomeResponse = await fetch('/api/income/current-month');
+                
+                if (incomeResponse.ok) {
+                    const incomeData = await incomeResponse.json();
+                    const monthlyIncome = incomeData.total_income || 0;
+                    const defaultSalary = incomeData.default_salary || 0;
+                    
+                    /* Use actual income if available, otherwise use default salary */
+                    const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : defaultSalary;
+                    
+                    /* Update salary display with appropriate indicator */
+                    salaryAmountElem.textContent = effectiveIncome.toFixed(2);
+                    
+                    /* Add income source indicator */
+                    const salaryCard = document.querySelector('.finance-card.salary');
+                    let incomeSource = salaryCard.querySelector('.income-source');
+                    
+                    if (!incomeSource) {
+                        incomeSource = document.createElement('div');
+                        incomeSource.className = 'income-source';
+                        salaryCard.appendChild(incomeSource);
+                    }
+                    
+                    if (monthlyIncome > 0) {
+                        incomeSource.textContent = 'Current month income';
+                        incomeSource.className = 'income-source actual-income';
+                    } else {
+                        incomeSource.textContent = 'Default salary';
+                        incomeSource.className = 'income-source default-income';
+                    }
+                    
+                    /* Store the effective income for calculations */
+                    userData.effectiveIncome = effectiveIncome;
+                } else {
+                    /* If income API fails, fall back to default salary */
+                    if (userData && typeof userData.salary !== 'undefined') {
+                        salaryAmountElem.textContent = userData.salary.toFixed(2);
+                        
+                        /* Store the default salary for calculations */
+                        userData.effectiveIncome = userData.salary;
+                        
+                        /* Indicate we're using default salary */
+                        const salaryCard = document.querySelector('.finance-card.salary');
+                        let incomeSource = salaryCard.querySelector('.income-source');
+                        
+                        if (!incomeSource) {
+                            incomeSource = document.createElement('div');
+                            incomeSource.className = 'income-source default-income';
+                            incomeSource.textContent = 'Default salary';
+                            salaryCard.appendChild(incomeSource);
+                        }
+                    } else {
+                        salaryAmountElem.textContent = '0.00';
+                        if (userData) userData.effectiveIncome = 0;
+                    }
+                }
+                
+                /* Update financial summary */
+                updateFinancialSummary();
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                /* Handle error state */
+                salaryAmountElem.textContent = '0.00';
+                salaryAmountElem.parentElement.innerHTML += '<div class="error-message">Failed to load salary data</div>';
+            }
+        }
+        
+        /* Handle form submission */
+        expenseForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const description = document.getElementById('expenseDescription').value.trim();
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const date = document.getElementById('expenseDate').value;
+            const category = document.getElementById('expenseCategory').value;
+            
+            // Validate inputs
+            if (!amount || isNaN(amount)) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+            
+            // Check if we need to submit a correction to the AI
+            const aiPredictedCategory = expenseForm.getAttribute('data-ai-predicted-category');
+            
+            // If the user selected a different category than what AI predicted
+            if (description && category && aiPredictedCategory && category !== aiPredictedCategory) {
+                // Submit the correction in the background
+                const correctionResult = await submitCategoryCorrection(description, category, amount, aiPredictedCategory);
+                
+                // Only show notification if submission was at least attempted (even if server determined it wasn't needed)
+                if (correctionResult) {
+                    // Show a small notification that the AI will learn from this choice
+                    const correctionNotice = document.createElement('div');
+                    correctionNotice.className = 'correction-notice';
+                    correctionNotice.innerHTML = `
+                        <i class="fas fa-robot"></i> AI will learn from your category selection
+                    `;
+                    
+                    // Add to page temporarily
+                    document.body.appendChild(correctionNotice);
+                    
+                    // Remove after a few seconds
+                    setTimeout(() => {
+                        correctionNotice.classList.add('fade-out');
+                        setTimeout(() => correctionNotice.remove(), 500);
+                    }, 3000);
+                }
+            }
+            
+            // Choose endpoint based on whether we're using AI categorization
+            let endpoint;
+            let formData = {
+                amount: amount,
+                date: date
+            };
+            
+            if (description) {
+                formData.description = description;
+            }
+            
+            if (!category) {
+                // Use AI categorization if no category is selected
+                endpoint = '/api/ai/auto-categorize';
+                
+                // Check if description is provided when using AI
+                if (!description) {
+                    alert('Please enter a description when using AI categorization');
+                    return;
+                }
+            } else {
+                // Use standard endpoint with selected category
+                endpoint = '/api/expenses';
+                formData.category = category;
+            }
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Handle response from either endpoint
+                    const newExpense = data.expense || {
+                        id: data.expense_id,
+                        amount: amount,
+                        category: data.category,
+                        date: date,
+                        description: description
+                    };
+                    
+                    // Add AI-specific data if available
+                    if (data.confidence) {
+                        newExpense.auto_categorized = true;
+                        newExpense.categorization_confidence = data.confidence;
+                    }
+                    
+                    /* Add the new expense to our expenses array */
+                    expenses.push(newExpense);
+                    
+                    /* Add the new expense to the list */
+                    addExpenseToList(newExpense);
+                    
+                    /* Update financial summary */
+                    updateFinancialSummary();
+                    
+                    /* Hide the modal and reset form */
+                    expenseModal.style.display = 'none';
+                    expenseForm.reset();
+                    document.getElementById('expenseDate').valueAsDate = new Date();
+                    aiCategoryBadge.style.display = 'none';
+                    
+                    /* Clear the AI predicted category data */
+                    expenseForm.removeAttribute('data-ai-predicted-category');
+                    expenseForm.removeAttribute('data-ai-confidence');
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to add expense: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error adding expense:', error);
+                alert('Error adding expense. Please try again.');
+            }
+        });
+        
+        /* Function to add expense to the expenses list */
+        function addExpenseToList(expense) {
+            /* Hide 'No expenses' message if there are expenses */
+            if (noExpensesMessage) {
+                noExpensesMessage.style.display = 'none';
+            }
+            
+            /* Format date for display */
+            const expenseDate = new Date(expense.date);
+            const formattedDate = expenseDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            
+            /* Create expense element */
+            const expenseElement = document.createElement('div');
+            expenseElement.className = 'expense-item';
+            expenseElement.dataset.expenseId = expense.id;
+            
+            /* Format amount for display */
+            const formattedAmount = new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR'
+            }).format(expense.amount);
+            
+            /* Add AI badge for auto-categorized expenses */
+            let aiBadgeHTML = '';
+            if (expense.auto_categorized) {
+                const confidence = expense.categorization_confidence;
+                let confidenceClass = 'low-confidence';
+                
+                if (confidence > 0.8) {
+                    confidenceClass = 'high-confidence';
+                } else if (confidence > 0.5) {
+                    confidenceClass = 'medium-confidence';
+                }
+                
+                aiBadgeHTML = `
+                    <div class="ai-badge ${confidenceClass}">
+                        <i class="fas fa-robot"></i> AI (${Math.round(confidence * 100)}%)
+                    </div>
+                `;
+            }
+            
+            /* Build expense item HTML */
+            expenseElement.innerHTML = `
+                <div class="expense-date">${formattedDate}</div>
+                <div class="expense-details">
+                    <div class="expense-category">
+                        ${expense.category} ${aiBadgeHTML}
+                    </div>
+                    <div class="expense-description">${expense.description || ''}</div>
+                </div>
+                <div class="expense-amount">${formattedAmount}</div>
+                <div class="expense-actions">
+                    <button class="delete-btn" data-expense-id="${expense.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            /* Add event listener for delete button */
+            const deleteBtn = expenseElement.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', function() {
+                deleteExpense(expense.id);
+            });
+            
+            /* Add to container */
+            expensesContainer.insertBefore(expenseElement, expensesContainer.firstChild);
+        }
+        
+        /* Function to delete an expense */
+        async function deleteExpense(expenseId) {
+            if (!confirm('Are you sure you want to delete this expense?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/expenses/${expenseId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    /* Remove expense from our expenses array */
+                    const index = expenses.findIndex(e => e.id === expenseId);
+                    if (index !== -1) {
+                        expenses.splice(index, 1);
+                    }
+                    
+                    /* Remove expense element from DOM */
+                    const expenseElement = document.querySelector(`.expense-item[data-expense-id="${expenseId}"]`);
+                    if (expenseElement) {
+                        expenseElement.remove();
+                    }
+                    
+                    /* Update financial summary */
+                    updateFinancialSummary();
+                    
+                    /* Show "no expenses" message if there are no expenses left */
+                    if (expenses.length === 0) {
+                        noExpensesMessage.style.display = 'block';
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to delete expense: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting expense:', error);
+                alert('An error occurred. Please try again.');
+            }
+        }
+        
+        /* Function to load all expenses */
+        async function loadExpenses() {
+            try {
+                // First check if we can get the user ID
+                const userId = getCurrentUserId();
+                
+                // If we have a user ID, try user-specific endpoint
+                let response;
+                if (userId) {
+                    response = await fetch(`/api/expenses/user/${userId}`);
+                } else {
+                    // If no user ID, go straight to general endpoint
+                    response = await fetch('/api/expenses');
+                }
+                
+                // Process the response
+                if (response && response.ok) {
+                    const data = await response.json();
+                    expenses = data.expenses || [];
+                    
+                    /* Clear any existing expenses in the container */
+                    expensesContainer.innerHTML = '';
+                    
+                    if (!expenses || expenses.length === 0) {
+                        expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>';
+                        noExpensesMessage = document.getElementById('no-expenses-message');
+                    } else {
+                        // Apply the global month filter
+                        let filteredExpenses = expenses;
+                        
+                        // Check if global month filter is available
+                        if (window.appState && window.appState.selectedMonth) {
+                            const selectedMonth = window.appState.selectedMonth;
+                            
+                            // Only filter if a specific month is selected (not 'all')
+                            if (selectedMonth !== 'all') {
+                                const year = window.appState.currentYear;
+                                const monthNum = selectedMonth === 'current' ? 
+                                    new Date().getMonth() + 1 : 
+                                    parseInt(selectedMonth);
+                                
+                                // Create start and end dates for the selected month
+                                const startDate = new Date(year, monthNum - 1, 1);
+                                const endDate = new Date(year, monthNum, 0); // Last day of the month
+                                
+                                // Filter expenses by the selected month
+                                filteredExpenses = expenses.filter(expense => {
+                                    const expenseDate = new Date(expense.date);
+                                    return expenseDate >= startDate && expenseDate <= endDate;
+                                });
+                            }
+                        }
+                        
+                        /* Add each expense to the list */
+                        filteredExpenses.forEach(expense => {
+                            addExpenseToList(expense);
+                        });
+                        
+                        // Show appropriate message if filtered results are empty
+                        if (filteredExpenses.length === 0) {
+                            expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses found for the selected month.</p>';
+                            noExpensesMessage = document.getElementById('no-expenses-message');
+                        }
+                    }
+                    
+                    /* Update financial summary with filtered expenses */
+                    updateFinancialSummary();
+                    return; // Successfully loaded, so exit the function
+                } else {
+                    console.error('Failed with first endpoint, trying general expenses endpoint');
+                    // Try fallback to general endpoint if we haven't already
+                    if (userId) {
+                        const fallbackResponse = await fetch('/api/expenses');
+                        
+                        if (fallbackResponse.ok) {
+                            const fallbackData = await fallbackResponse.json();
+                            expenses = fallbackData.expenses || [];
+                            
+                            /* Clear any existing expenses in the container */
+                            expensesContainer.innerHTML = '';
+                            
+                            if (!expenses || expenses.length === 0) {
+                                expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>';
+                                noExpensesMessage = document.getElementById('no-expenses-message');
+                            } else {
+                                // Apply the global month filter
+                                let filteredExpenses = expenses;
+                                
+                                // Check if global month filter is available
+                                if (window.appState && window.appState.selectedMonth) {
+                                    const selectedMonth = window.appState.selectedMonth;
+                                    
+                                    // Only filter if a specific month is selected (not 'all')
+                                    if (selectedMonth !== 'all') {
+                                        const year = window.appState.currentYear;
+                                        const monthNum = selectedMonth === 'current' ? 
+                                            new Date().getMonth() + 1 : 
+                                            parseInt(selectedMonth);
+                                        
+                                        // Create start and end dates for the selected month
+                                        const startDate = new Date(year, monthNum - 1, 1);
+                                        const endDate = new Date(year, monthNum, 0); // Last day of the month
+                                        
+                                        // Filter expenses by the selected month
+                                        filteredExpenses = expenses.filter(expense => {
+                                            const expenseDate = new Date(expense.date);
+                                            return expenseDate >= startDate && expenseDate <= endDate;
+                                        });
+                                    }
+                                }
+                                
+                                /* Add each expense to the list */
+                                filteredExpenses.forEach(expense => {
+                                    addExpenseToList(expense);
+                                });
+                                
+                                // Show appropriate message if filtered results are empty
+                                if (filteredExpenses.length === 0) {
+                                    expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses found for the selected month.</p>';
+                                    noExpensesMessage = document.getElementById('no-expenses-message');
+                                }
+                            }
+                            
+                            /* Update financial summary */
+                            updateFinancialSummary();
+                            return; // Successfully loaded, so exit the function
+                        }
+                    }
+                    
+                    // If we got here, both attempts failed but we'll still show the no expenses message
+                    // instead of an error message since the user might just not have any expenses
+                    console.error('All attempts to load expenses failed, showing no expenses message');
+                    expenses = [];
+                    expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>';
+                    noExpensesMessage = document.getElementById('no-expenses-message');
+                    updateFinancialSummary();
+                }
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+                
+                // One last attempt with the simplest endpoint
+                try {
+                    const lastAttemptResponse = await fetch('/api/expenses');
+                    
+                    if (lastAttemptResponse.ok) {
+                        const data = await lastAttemptResponse.json();
+                        expenses = data.expenses || [];
+                        
+                        /* Clear any existing expenses in the container */
+                        expensesContainer.innerHTML = '';
+                        
+                        if (!expenses || expenses.length === 0) {
+                            expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>';
+                            noExpensesMessage = document.getElementById('no-expenses-message');
+                        } else {
+                            // Apply the global month filter
+                            let filteredExpenses = expenses;
+                            
+                            // Check if global month filter is available
+                            if (window.appState && window.appState.selectedMonth) {
+                                const selectedMonth = window.appState.selectedMonth;
+                                
+                                // Only filter if a specific month is selected (not 'all')
+                                if (selectedMonth !== 'all') {
+                                    const year = window.appState.currentYear;
+                                    const monthNum = selectedMonth === 'current' ? 
+                                        new Date().getMonth() + 1 : 
+                                        parseInt(selectedMonth);
+                                    
+                                    // Create start and end dates for the selected month
+                                    const startDate = new Date(year, monthNum - 1, 1);
+                                    const endDate = new Date(year, monthNum, 0); // Last day of the month
+                                    
+                                    // Filter expenses by the selected month
+                                    filteredExpenses = expenses.filter(expense => {
+                                        const expenseDate = new Date(expense.date);
+                                        return expenseDate >= startDate && expenseDate <= endDate;
+                                    });
+                                }
+                            }
+                            
+                            /* Add each expense to the list */
+                            filteredExpenses.forEach(expense => {
+                                addExpenseToList(expense);
+                            });
+                            
+                            // Show appropriate message if filtered results are empty
+                            if (filteredExpenses.length === 0) {
+                                expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses found for the selected month.</p>';
+                                noExpensesMessage = document.getElementById('no-expenses-message');
+                            }
+                        }
+                        
+                        /* Update financial summary */
+                        updateFinancialSummary();
+                        return;
+                    }
+                } catch (fallbackError) {
+                    console.error('Error in fallback expense loading:', fallbackError);
+                }
+                
+                // Even if all API calls fail, we'll still show the no expenses message
+                expenses = [];
+                expensesContainer.innerHTML = '<p class="no-expenses" id="no-expenses-message">No expenses added yet.</p>';
+                noExpensesMessage = document.getElementById('no-expenses-message');
+                updateFinancialSummary();
+            }
+        }
+        
+        /* Function to update financial summary */
+        function updateFinancialSummary() {
+            if (!userData) return;
+            
+            const salaryAmount = userData.effectiveIncome || 0;
+            
+            // Apply the global month filter to expenses for the summary calculation
+            let filteredExpenses = expenses;
+            
+            // Check if global month filter is available
+            if (window.appState && window.appState.selectedMonth) {
+                const selectedMonth = window.appState.selectedMonth;
+                
+                // Only filter if a specific month is selected (not 'all')
+                if (selectedMonth !== 'all') {
+                    const year = window.appState.currentYear;
+                    const monthNum = selectedMonth === 'current' ? 
+                        new Date().getMonth() + 1 : 
+                        parseInt(selectedMonth);
+                    
+                    // Create start and end dates for the selected month
+                    const startDate = new Date(year, monthNum - 1, 1);
+                    const endDate = new Date(year, monthNum, 0); // Last day of the month
+                    
+                    // Filter expenses by the selected month
+                    filteredExpenses = expenses.filter(expense => {
+                        const expenseDate = new Date(expense.date);
+                        return expenseDate >= startDate && expenseDate <= endDate;
+                    });
+                }
+            }
+            
+            const totalExpenses = filteredExpenses.reduce((total, expense) => total + expense.amount, 0);
+            const balance = salaryAmount - totalExpenses;
+            
+            expensesAmountElem.textContent = totalExpenses.toFixed(2);
+            balanceAmountElem.textContent = balance.toFixed(2);
+            
+            /* Color the balance based on value */
+            const balanceCard = document.querySelector('.finance-card.balance');
+            
+            if (balance < 0) {
+                balanceCard.className = 'finance-card balance negative';
+            } else if (balance < salaryAmount * 0.2) {
+                balanceCard.className = 'finance-card balance low';
+            } else {
+                balanceCard.className = 'finance-card balance';
+            }
+        }
+        
+        /* Load user data on page load */
+        loadUserData();
+        
+        /* Load expenses on page load */
+        loadExpenses();
+        
+        /* Add listener for global month changes */
+        document.addEventListener('monthChanged', function(e) {
+            // Reload expenses when month selection changes
+            loadExpenses();
+        });
+    });
+</script>
+
+<style>
+    /* Expense List */
+    .expenses-list {
+        margin-top: 20px;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .expense-item {
+        display: flex;
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        background-color: white;
+        align-items: center;
+        transition: background-color 0.2s;
+    }
+    
+    .expense-item:last-child {
+        border-bottom: none;
+    }
+    
+    .expense-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .expense-date {
+        flex: 0 0 100px;
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .expense-details {
+        flex: 1;
+    }
+    
+    .expense-category {
+        font-weight: 600;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .expense-description {
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    .expense-amount {
+        flex: 0 0 120px;
+        font-weight: 700;
+        font-size: 1.1em;
+        text-align: right;
+        color: #e63946;
+    }
+    
+    .expense-actions {
+        flex: 0 0 40px;
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .no-expenses {
+        padding: 20px;
+        text-align: center;
+        color: #666;
+        background-color: white;
+        border-radius: 8px;
+    }
+    
+    /* AI Badge Styles */
+    .ai-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        animation: fade-in 0.3s ease-out;
+    }
+    
+    .ai-badge i {
+        margin-right: 4px;
+    }
+    
+    .ai-badge.high-confidence {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+    
+    .ai-badge.medium-confidence {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+    
+    .ai-badge.low-confidence {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+    
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    /* AI Categorize Button */
+    .ai-categorize-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background-color: #6c5ce7;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-top: 5px;
+        transition: background-color 0.2s;
+    }
+    
+    .ai-categorize-btn:hover {
+        background-color: #5d4aeb;
+    }
+    
+    .ai-categorize-btn i {
+        margin-right: 5px;
+    }
+    
+    /* Delete Button */
+    .delete-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 1rem;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    
+    .delete-btn:hover {
+        opacity: 1;
+    }
+    
+    /* AI Learning Notification Styles */
+    .correction-notice {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        animation: slide-in 0.3s ease-out;
+        z-index: 1000;
+    }
+    
+    .correction-notice i {
+        margin-right: 8px;
+        font-size: 1.1rem;
+    }
+    
+    .correction-notice.fade-out {
+        animation: fade-out 0.5s ease-out forwards;
+    }
+    
+    @keyframes slide-in {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes fade-out {
+        from {
+            opacity: 1;
+        }
+        to {
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %} 

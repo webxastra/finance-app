@@ -1,0 +1,454 @@
+<div class="dashboard-section">
+    <div class="section-header">
+        <h2><i class="fas fa-chart-bar"></i> Expense Overview</h2>
+    </div>
+    
+    <div class="filter-container">
+        <div class="action-buttons">
+            <button id="addExpenseBtn" class="action-button">
+                <i class="fas fa-plus"></i> Add New Expense
+            </button>
+        </div>
+    </div>
+
+    <div class="expense-table">
+        <table id="expenseTable">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="expenseTableBody">
+                <tr>
+                    <td colspan="5" id="noExpensesMessage">No expenses found.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="expense-charts">
+        <div class="chart-container">
+            <h3>Expenses by Category</h3>
+            <canvas id="categoryChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Expense Trend</h3>
+            <canvas id="expenseTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const expenseTable = document.getElementById('expenseTable');
+    const expenseTableBody = document.getElementById('expenseTableBody');
+    const noExpensesMessage = document.getElementById('noExpensesMessage');
+    const loadingExpenses = document.getElementById('loadingExpenses');
+    const errorMessage = document.getElementById('errorMessage');
+    const categoryChart = document.getElementById('categoryChart');
+    const expenseTrendChart = document.getElementById('expenseTrendChart');
+    
+    // Add Expense Modal
+    const addExpenseBtn = document.getElementById('addExpenseBtn');
+    const addExpenseModal = document.getElementById('addExpenseModal');
+    const addExpenseForm = document.getElementById('addExpenseForm');
+    const closeAddModal = document.querySelector('#addExpenseModal .close-modal');
+    
+    // Edit Expense Modal
+    const editExpenseModal = document.getElementById('editExpenseModal');
+    const editExpenseForm = document.getElementById('editExpenseForm');
+    const closeEditModal = document.querySelector('#editExpenseModal .close-modal');
+    
+    // Category Element
+    const expenseCategoryInput = document.getElementById('expenseCategory');
+    const editExpenseCategoryInput = document.getElementById('editExpenseCategory');
+    
+    // Charts
+    let categoryPieChart = null;
+    let expenseLineChart = null;
+    
+    // Store all expenses
+    let allExpenses = [];
+    
+    // Initialize page
+    init();
+    
+    // Listen for global month changes
+    document.addEventListener('monthChanged', function(e) {
+        filterExpensesByMonth(e.detail.month);
+        updateCharts();
+    });
+    
+    // Add expense button click
+    addExpenseBtn.addEventListener('click', function() {
+        showAddExpenseModal();
+    });
+    
+    // Close add modal
+    closeAddModal.addEventListener('click', function() {
+        addExpenseModal.style.display = 'none';
+    });
+    
+    // Close edit modal
+    closeEditModal.addEventListener('click', function() {
+        editExpenseModal.style.display = 'none';
+    });
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === addExpenseModal) {
+            addExpenseModal.style.display = 'none';
+        }
+        if (event.target === editExpenseModal) {
+            editExpenseModal.style.display = 'none';
+        }
+    });
+    
+    // Add expense form submit
+    addExpenseForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        addExpense();
+    });
+    
+    // Edit expense form submit
+    editExpenseForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        updateExpense();
+    });
+
+    // Function to initialize the page
+    function init() {
+        // Set up default date in the add expense form
+        const today = new Date();
+        document.getElementById('expenseDate').valueAsDate = today;
+        
+        // Fetch categories for dropdown
+        fetchCategories();
+        
+        // Load all expenses
+        loadExpenses();
+    }
+    
+    // Function to load expenses
+    async function loadExpenses() {
+        try {
+            // Show loading message
+            loadingExpenses.style.display = 'flex';
+            noExpensesMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            expenseTableBody.innerHTML = '';
+            
+            // Get current user ID
+            const userId = getCurrentUserId();
+            
+            // Fetch expenses from API
+            const response = await fetch(`/api/expenses/user/${userId}`);
+            if (!response.ok) {
+                throw new Error('Failed to load expenses');
+            }
+            
+            const data = await response.json();
+            allExpenses = data.expenses || [];
+            
+            // Get selected month from global state
+            const selectedMonth = window.appState ? 
+                (window.appState.selectedMonth === 'current' ? 
+                    (new Date()).getMonth() + 1 : window.appState.selectedMonth) : 
+                (new Date()).getMonth() + 1;
+            
+            // Filter and display expenses
+            filterExpensesByMonth(selectedMonth);
+            
+            // Create charts
+            createCategoryChart();
+            createTrendChart();
+            
+            // Hide loading message
+            loadingExpenses.style.display = 'none';
+        } catch (error) {
+            console.error('Error loading expenses:', error);
+            loadingExpenses.style.display = 'none';
+            errorMessage.style.display = 'flex';
+            errorMessage.querySelector('p').textContent = 'Error loading expenses. Please try again.';
+        }
+    }
+    
+    // Function to filter expenses by month
+    function filterExpensesByMonth(month) {
+        // Clear existing rows
+        expenseTableBody.innerHTML = '';
+        
+        // Filter expenses
+        let filteredExpenses = [];
+        
+        if (month === 'all' || !month) {
+            // Show all expenses
+            filteredExpenses = [...allExpenses];
+        } else {
+            // Convert month to number
+            const monthNum = month === 'current' ? 
+                (new Date()).getMonth() + 1 : 
+                (typeof month === 'string' ? parseInt(month) : month);
+            
+            // Get the current year
+            const year = new Date().getFullYear();
+            
+            // Create start and end dates for the selected month
+            const startDate = new Date(year, monthNum - 1, 1);
+            const endDate = new Date(year, monthNum, 0); // Last day of the month
+            
+            // Filter by month
+            filteredExpenses = allExpenses.filter(expense => {
+                const expenseDate = new Date(expense.date);
+                return expenseDate >= startDate && expenseDate <= endDate;
+            });
+        }
+        
+        // Sort by date (newest first)
+        filteredExpenses.sort((a, b) => {
+            return new Date(b.date) - new Date(a.date);
+        });
+        
+        // Display expenses or show message
+        if (filteredExpenses.length === 0) {
+            expenseTable.style.display = 'none';
+            noExpensesMessage.style.display = 'flex';
+        } else {
+            expenseTable.style.display = 'table';
+            noExpensesMessage.style.display = 'none';
+            
+            // Create table rows
+            filteredExpenses.forEach(expense => {
+                addExpenseRow(expense);
+            });
+        }
+        
+        // Update charts
+        updateCharts(filteredExpenses);
+    }
+
+    // Function to show add expense modal
+    function showAddExpenseModal() {
+        // Reset form
+        addExpenseForm.reset();
+        
+        // Set default date to today
+        const today = new Date();
+        document.getElementById('expenseDate').valueAsDate = today;
+        
+        // Set min and max date based on selected month
+        if (window.appState) {
+            const startDate = window.appState.getMonthStartDate();
+            const endDate = window.appState.getMonthEndDate();
+            
+            document.getElementById('expenseDate').min = window.appState.formatDateForInput(startDate);
+            document.getElementById('expenseDate').max = window.appState.formatDateForInput(endDate);
+        }
+        
+        // Show modal
+        addExpenseModal.style.display = 'block';
+    }
+    
+    // Function to show edit expense modal
+    function showEditExpenseModal(expenseId) {
+        // Find expense
+        const expense = allExpenses.find(e => e.id === expenseId);
+        if (!expense) return;
+        
+        // Populate form
+        document.getElementById('editExpenseId').value = expense.id;
+        document.getElementById('editExpenseDescription').value = expense.description || '';
+        document.getElementById('editExpenseAmount').value = expense.amount;
+        
+        // Set date
+        const expenseDate = new Date(expense.date);
+        const formattedDate = expenseDate.toISOString().split('T')[0];
+        document.getElementById('editExpenseDate').value = formattedDate;
+        
+        // Set min and max date based on selected month
+        if (window.appState) {
+            const startDate = window.appState.getMonthStartDate();
+            const endDate = window.appState.getMonthEndDate();
+            
+            document.getElementById('editExpenseDate').min = window.appState.formatDateForInput(startDate);
+            document.getElementById('editExpenseDate').max = window.appState.formatDateForInput(endDate);
+        }
+        
+        // Set category
+        document.getElementById('editExpenseCategory').value = expense.category;
+        
+        // Show modal
+        editExpenseModal.style.display = 'block';
+    }
+    
+    // Function to add new expense
+    async function addExpense() {
+        try {
+            const description = document.getElementById('expenseDescription').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const dateValue = document.getElementById('expenseDate').value;
+            const category = document.getElementById('expenseCategory').value;
+            
+            // Validate the date is within the selected month
+            if (window.appState && !isDateInSelectedMonth(dateValue)) {
+                alert('Date must be within the selected month');
+                return;
+            }
+            
+            // Create expense object
+            const expense = {
+                description: description,
+                amount: amount,
+                date: dateValue,
+                category: category
+            };
+            
+            // Send to API
+            const response = await fetch('/api/expenses/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(expense)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to add expense');
+            }
+            
+            const result = await response.json();
+            
+            // Add to expenses array
+            allExpenses.push(result.expense);
+            
+            // Close modal
+            addExpenseModal.style.display = 'none';
+            
+            // Refresh display
+            const selectedMonth = window.appState ? 
+                window.appState.selectedMonth : 
+                (new Date()).getMonth() + 1;
+            filterExpensesByMonth(selectedMonth);
+            
+            // Update charts
+            updateCharts();
+            
+        } catch (error) {
+            console.error('Error adding expense:', error);
+            alert('Error adding expense. Please try again.');
+        }
+    }
+    
+    // Function to update expense
+    async function updateExpense() {
+        try {
+            const expenseId = document.getElementById('editExpenseId').value;
+            const description = document.getElementById('editExpenseDescription').value;
+            const amount = parseFloat(document.getElementById('editExpenseAmount').value);
+            const dateValue = document.getElementById('editExpenseDate').value;
+            const category = document.getElementById('editExpenseCategory').value;
+            
+            // Validate the date is within the selected month
+            if (window.appState && !isDateInSelectedMonth(dateValue)) {
+                alert('Date must be within the selected month');
+                return;
+            }
+            
+            // Create expense object
+            const expense = {
+                description: description,
+                amount: amount,
+                date: dateValue,
+                category: category
+            };
+            
+            // Send to API
+            const response = await fetch(`/api/expenses/${expenseId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(expense)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to update expense');
+            }
+            
+            const result = await response.json();
+            
+            // Update in expenses array
+            const index = allExpenses.findIndex(e => e.id === parseInt(expenseId));
+            if (index !== -1) {
+                allExpenses[index] = result.expense;
+            }
+            
+            // Close modal
+            editExpenseModal.style.display = 'none';
+            
+            // Refresh display
+            const selectedMonth = window.appState ? 
+                window.appState.selectedMonth : 
+                (new Date()).getMonth() + 1;
+            filterExpensesByMonth(selectedMonth);
+            
+            // Update charts
+            updateCharts();
+            
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            alert('Error updating expense. Please try again.');
+        }
+    }
+    
+    // Function to check if date is in selected month
+    function isDateInSelectedMonth(dateStr) {
+        if (!window.appState) return true; // Skip validation if appState not available
+        
+        const date = new Date(dateStr);
+        const startDate = window.appState.getMonthStartDate();
+        const endDate = window.appState.getMonthEndDate();
+        
+        return date >= startDate && date <= endDate;
+    }
+
+    // Function to update charts
+    function updateCharts(filteredExpenses) {
+        // Use provided filtered expenses or filter by current selection
+        if (!filteredExpenses) {
+            const selectedMonth = window.appState ? 
+                window.appState.selectedMonth : 
+                (new Date()).getMonth() + 1;
+                
+            if (selectedMonth === 'all' || !selectedMonth) {
+                filteredExpenses = [...allExpenses];
+            } else {
+                const monthNum = selectedMonth === 'current' ? 
+                    (new Date()).getMonth() + 1 : 
+                    (typeof selectedMonth === 'string' ? parseInt(selectedMonth) : selectedMonth);
+                
+                const year = new Date().getFullYear();
+                const startDate = new Date(year, monthNum - 1, 1);
+                const endDate = new Date(year, monthNum, 0);
+                
+                filteredExpenses = allExpenses.filter(expense => {
+                    const expenseDate = new Date(expense.date);
+                    return expenseDate >= startDate && expenseDate <= endDate;
+                });
+            }
+        }
+        
+        // Update category chart
+        updateCategoryChart(filteredExpenses);
+        
+        // Update trend chart
+        updateTrendChart(filteredExpenses);
+    }
+
+});
+</script> 

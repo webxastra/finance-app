@@ -1,0 +1,803 @@
+{% extends 'layout.html' %}
+
+{% block title %}Income Management - FinancePro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">Income Management</h1>
+            <button id="addIncomeBtn" class="action-button">
+                <i class="fas fa-plus"></i> Add Income
+            </button>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-money-bill-wave"></i> Monthly Income Summary</h2>
+            <div class="income-summary">
+                <div class="summary-card default-salary">
+                    <h3 class="summary-card-title">Default Monthly Salary</h3>
+                    <div class="summary-card-amount" id="defaultSalary">₹0</div>
+                    <button id="updateDefaultSalaryBtn" class="small-action-button">
+                        <i class="fas fa-edit"></i> Update
+                    </button>
+                </div>
+                <div class="summary-card current-month-income">
+                    <h3 class="summary-card-title">Current Month Income</h3>
+                    <div class="summary-card-amount" id="currentMonthIncome">₹0</div>
+                    <div class="summary-card-subtitle" id="currentMonthLabel">No entries for this month</div>
+                </div>
+                <div class="summary-card income-sources">
+                    <h3 class="summary-card-title">Income Sources</h3>
+                    <div class="summary-card-amount" id="incomeSources">0</div>
+                    <div class="summary-card-subtitle">Different sources of income</div>
+                </div>
+                <div class="summary-card annual-income">
+                    <h3 class="summary-card-title">Annual Income (Current Year)</h3>
+                    <div class="summary-card-amount" id="annualIncome">₹0</div>
+                    <div class="summary-card-subtitle" id="annualIncomeYear">2025</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2><i class="fas fa-hand-holding-usd"></i> Income Overview</h2>
+            </div>
+            
+            <div class="filter-container">
+                <div class="action-buttons">
+                    <!-- Add Income and Download CSV buttons removed as per user request -->
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label for="yearFilter" class="filter-label">Year:</label>
+                    <select id="yearFilter" class="filter-select">
+                        <!-- Years will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="monthFilter" class="filter-label">Month:</label>
+                    <select id="monthFilter" class="filter-select">
+                        <option value="0">All Months</option>
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sourceFilter" class="filter-label">Source:</label>
+                    <select id="sourceFilter" class="filter-select">
+                        <option value="all">All Sources</option>
+                        <!-- Sources will be populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <h2 class="section-heading"><i class="fas fa-list"></i> Income Entries</h2>
+            <div id="incomeList" class="income-list">
+                <div id="loadingSpinner" class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Loading income data...</span>
+                </div>
+                <div id="noIncomeMessage" class="no-data-message" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    <p>No income entries found. Click "Add Income" to get started.</p>
+                </div>
+                <!-- Income entries will be populated dynamically -->
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-chart-bar"></i> Income Distribution</h2>
+            <div class="chart-container">
+                <canvas id="incomeChart"></canvas>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-lightbulb"></i> Income Tips</h2>
+            <ul class="tips-list">
+                <li>Track all sources of income for a complete financial picture.</li>
+                <li>Record variable income promptly to maintain accurate records.</li>
+                <li>Consider setting aside a percentage of variable income for taxes.</li>
+                <li>Use your income history to set realistic financial goals.</li>
+                <li>Watch for seasonal patterns in your income to plan effectively.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Income Modal -->
+<div id="incomeModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-money-bill-wave"></i> <span id="modalAction">Add</span> Income</h2>
+        
+        <form id="incomeForm">
+            <input type="hidden" id="incomeId" name="incomeId" value="">
+            
+            <div class="form-group">
+                <label for="incomeAmount">Amount (₹)</label>
+                <input type="number" id="incomeAmount" name="amount" required placeholder="e.g., 50000" min="0" step="0.01">
+            </div>
+            
+            <div class="form-group">
+                <label for="incomeSource">Source</label>
+                <select id="incomeSource" name="source">
+                    <option value="Salary">Salary</option>
+                    <option value="Freelance">Freelance</option>
+                    <option value="Consulting">Consulting</option>
+                    <option value="Bonus">Bonus</option>
+                    <option value="Investments">Investments</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="incomeMonth">Month</label>
+                <select id="incomeMonth" name="month" required>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="incomeYear">Year</label>
+                <select id="incomeYear" name="year" required>
+                    <!-- Years will be populated dynamically -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="incomeDescription">Description (Optional)</label>
+                <textarea id="incomeDescription" name="description" placeholder="Additional details about this income"></textarea>
+            </div>
+            
+            <div class="form-buttons">
+                <button type="button" id="cancelBtn" class="btn-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Update Default Salary Modal -->
+<div id="defaultSalaryModal" class="modal">
+    <div class="modal-content">
+        <span class="close-default-salary-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-money-bill-wave"></i> Update Default Salary</h2>
+        
+        <form id="defaultSalaryForm">
+            <div class="form-group">
+                <label for="defaultSalaryAmount">Monthly Salary (₹)</label>
+                <input type="number" id="defaultSalaryAmount" name="salary" required placeholder="e.g., 50000" min="0" step="0.01">
+            </div>
+            
+            <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <p>This is your default monthly salary. It will be used as a reference, but you can record actual income each month separately.</p>
+            </div>
+            
+            <div class="form-buttons">
+                <button type="button" id="cancelDefaultSalaryBtn" class="btn-cancel">Cancel</button>
+                <button type="submit" class="btn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-content">
+        <h2 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h2>
+        <p>Are you sure you want to delete this income entry? This action cannot be undone.</p>
+        
+        <div class="form-buttons">
+            <button type="button" id="cancelDeleteBtn" class="btn-cancel">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="btn-delete">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const addIncomeBtn = document.getElementById('addIncomeBtn');
+    const updateDefaultSalaryBtn = document.getElementById('updateDefaultSalaryBtn');
+    const incomeModal = document.getElementById('incomeModal');
+    const defaultSalaryModal = document.getElementById('defaultSalaryModal');
+    const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+    const closeModal = document.querySelector('.close-modal');
+    const closeDefaultSalaryModal = document.querySelector('.close-default-salary-modal');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const cancelDefaultSalaryBtn = document.getElementById('cancelDefaultSalaryBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const incomeForm = document.getElementById('incomeForm');
+    const defaultSalaryForm = document.getElementById('defaultSalaryForm');
+    const modalAction = document.getElementById('modalAction');
+    const yearFilter = document.getElementById('yearFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const incomeList = document.getElementById('incomeList');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const noIncomeMessage = document.getElementById('noIncomeMessage');
+    const incomeYearSelect = document.getElementById('incomeYear');
+    
+    // Chart elements
+    const ctx = document.getElementById('incomeChart').getContext('2d');
+    let incomeChart = null;
+    
+    // State variables
+    let currentIncomeId = null;
+    let incomeData = [];
+    let defaultSalary = 0;
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth() + 1; // 1-12
+    let currentYear = currentDate.getFullYear();
+    
+    // Populate year dropdowns
+    function populateYearDropdowns() {
+        // Clear existing options
+        yearFilter.innerHTML = '<option value="0">All Years</option>';
+        incomeYearSelect.innerHTML = '';
+        
+        // Add years (current year and 5 years in past and future)
+        const startYear = currentYear - 5;
+        const endYear = currentYear + 5;
+        
+        for (let year = startYear; year <= endYear; year++) {
+            // For filter dropdown
+            const filterOption = document.createElement('option');
+            filterOption.value = year;
+            filterOption.textContent = year;
+            if (year === currentYear) {
+                filterOption.selected = true;
+            }
+            yearFilter.appendChild(filterOption);
+            
+            // For form dropdown
+            const formOption = document.createElement('option');
+            formOption.value = year;
+            formOption.textContent = year;
+            if (year === currentYear) {
+                formOption.selected = true;
+            }
+            incomeYearSelect.appendChild(formOption);
+        }
+    }
+    
+    // Initialize page
+    function initPage() {
+        // Hide modals
+        incomeModal.style.display = 'none';
+        defaultSalaryModal.style.display = 'none';
+        deleteConfirmModal.style.display = 'none';
+        
+        // Populate year dropdowns
+        populateYearDropdowns();
+        
+        // Set current month in filter
+        monthFilter.value = currentMonth;
+        
+        // Load data
+        loadIncomeData();
+        
+        // Set up filters
+        setupFilters();
+    }
+    
+    // Load income data
+    async function loadIncomeData() {
+        try {
+            loadingSpinner.style.display = 'flex';
+            incomeList.style.display = 'none';
+            noIncomeMessage.style.display = 'none';
+            
+            // Get all income data
+            const response = await fetch('/api/income');
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch income data');
+            }
+            
+            const data = await response.json();
+            incomeData = data.incomes || [];
+            
+            // Get current month income
+            const currentMonthResponse = await fetch('/api/income/current-month');
+            if (currentMonthResponse.ok) {
+                const currentMonthData = await currentMonthResponse.json();
+                defaultSalary = currentMonthData.default_salary || 0;
+                updateIncomeDisplay();
+            }
+            
+            // Apply filters
+            filterIncomeData();
+            
+            // Update chart
+            updateIncomeChart();
+            
+            // Set default salary in display
+            document.getElementById('defaultSalary').textContent = `₹${defaultSalary.toFixed(2)}`;
+            
+            // Hide loading
+            loadingSpinner.style.display = 'none';
+            incomeList.style.display = 'block';
+        } catch (error) {
+            console.error('Error loading income data:', error);
+            loadingSpinner.innerHTML = `
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                <div>Error loading income data. Please try refreshing the page.</div>
+            `;
+        }
+    }
+    
+    // Update income display
+    function updateIncomeDisplay() {
+        // Calculate current month income
+        const currentMonthIncomes = incomeData.filter(income => 
+            income.month === currentMonth && income.year === currentYear
+        );
+        const currentMonthTotal = currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0);
+        document.getElementById('currentMonthIncome').textContent = `₹${currentMonthTotal.toFixed(2)}`;
+        
+        // Set current month label
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        document.getElementById('currentMonthLabel').textContent = `${monthNames[currentMonth-1]} ${currentYear}`;
+        
+        // Count unique income sources
+        const sources = new Set(incomeData.map(income => income.source));
+        document.getElementById('incomeSources').textContent = sources.size;
+        
+        // Calculate annual income
+        const currentYearIncomes = incomeData.filter(income => income.year === currentYear);
+        const annualTotal = currentYearIncomes.reduce((sum, income) => sum + income.amount, 0);
+        document.getElementById('annualIncome').textContent = `₹${annualTotal.toFixed(2)}`;
+        document.getElementById('annualIncomeYear').textContent = currentYear;
+        
+        // Update source filter
+        updateSourceFilter(sources);
+    }
+    
+    // Update source filter
+    function updateSourceFilter(sources) {
+        // Save current selection
+        const currentSelection = sourceFilter.value;
+        
+        // Clear existing options (except 'All Sources')
+        sourceFilter.innerHTML = '<option value="all">All Sources</option>';
+        
+        // Add sources
+        sources.forEach(source => {
+            const option = document.createElement('option');
+            option.value = source;
+            option.textContent = source;
+            sourceFilter.appendChild(option);
+        });
+        
+        // Restore selection if possible
+        if (Array.from(sourceFilter.options).some(option => option.value === currentSelection)) {
+            sourceFilter.value = currentSelection;
+        }
+    }
+    
+    // Filter income data based on selected filters
+    function filterIncomeData() {
+        const yearValue = parseInt(yearFilter.value);
+        const monthValue = parseInt(monthFilter.value);
+        const sourceValue = sourceFilter.value;
+        
+        // Apply filters
+        let filteredData = [...incomeData];
+        
+        if (yearValue > 0) {
+            filteredData = filteredData.filter(income => income.year === yearValue);
+        }
+        
+        if (monthValue > 0) {
+            filteredData = filteredData.filter(income => income.month === monthValue);
+        }
+        
+        if (sourceValue !== 'all') {
+            filteredData = filteredData.filter(income => income.source === sourceValue);
+        }
+        
+        // Display filtered data
+        displayIncomeEntries(filteredData);
+    }
+    
+    // Display income entries
+    function displayIncomeEntries(entries) {
+        // Clear existing entries
+        incomeList.innerHTML = '';
+        
+        if (entries.length === 0) {
+            noIncomeMessage.style.display = 'block';
+            return;
+        }
+        
+        noIncomeMessage.style.display = 'none';
+        
+        // Month names for display
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        // Create income cards
+        entries.forEach(income => {
+            const incomeCard = document.createElement('div');
+            incomeCard.className = 'income-card';
+            incomeCard.dataset.id = income.id;
+            
+            const incomeHeader = document.createElement('div');
+            incomeHeader.className = 'income-header';
+            
+            const incomeSource = document.createElement('h3');
+            incomeSource.className = 'income-source';
+            incomeSource.textContent = income.source;
+            
+            const incomeDate = document.createElement('div');
+            incomeDate.className = 'income-date';
+            incomeDate.textContent = `${monthNames[income.month-1]} ${income.year}`;
+            
+            incomeHeader.appendChild(incomeSource);
+            incomeHeader.appendChild(incomeDate);
+            
+            const incomeAmount = document.createElement('div');
+            incomeAmount.className = 'income-amount';
+            incomeAmount.textContent = `₹${income.amount.toFixed(2)}`;
+            
+            const incomeDetails = document.createElement('div');
+            incomeDetails.className = 'income-details';
+            
+            if (income.description) {
+                const incomeDescription = document.createElement('div');
+                incomeDescription.className = 'income-description';
+                incomeDescription.textContent = income.description;
+                incomeDetails.appendChild(incomeDescription);
+            }
+            
+            const incomeActions = document.createElement('div');
+            incomeActions.className = 'income-actions';
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'income-action edit-income';
+            editButton.innerHTML = '<i class="fas fa-edit"></i>';
+            editButton.title = 'Edit Income';
+            editButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showEditIncomeModal(income);
+            });
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'income-action delete-income';
+            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteButton.title = 'Delete Income';
+            deleteButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showDeleteIncomeModal(income);
+            });
+            
+            incomeActions.appendChild(editButton);
+            incomeActions.appendChild(deleteButton);
+            
+            incomeCard.appendChild(incomeHeader);
+            incomeCard.appendChild(incomeAmount);
+            incomeCard.appendChild(incomeDetails);
+            incomeCard.appendChild(incomeActions);
+            
+            incomeList.appendChild(incomeCard);
+        });
+    }
+    
+    // Setup filters
+    function setupFilters() {
+        yearFilter.addEventListener('change', filterIncomeData);
+        monthFilter.addEventListener('change', filterIncomeData);
+        sourceFilter.addEventListener('change', filterIncomeData);
+    }
+    
+    // Update income chart
+    function updateIncomeChart() {
+        // Get data for current year
+        const yearData = incomeData.filter(income => income.year === currentYear);
+        
+        // Prepare data for each month
+        const monthlyData = Array(12).fill(0);
+        yearData.forEach(income => {
+            monthlyData[income.month - 1] += income.amount;
+        });
+        
+        // Month labels
+        const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Calculate default salary line
+        const defaultSalaryLine = Array(12).fill(defaultSalary);
+        
+        // Destroy existing chart if any
+        if (incomeChart) {
+            incomeChart.destroy();
+        }
+        
+        // Create chart
+        incomeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [
+                    {
+                        label: 'Monthly Income',
+                        data: monthlyData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Default Salary',
+                        data: defaultSalaryLine,
+                        type: 'line',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount (₹)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: `Months (${currentYear})`
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Show add income modal
+    addIncomeBtn.addEventListener('click', function() {
+        resetIncomeForm();
+        modalAction.textContent = 'Add';
+        incomeModal.style.display = 'block';
+        
+        // Set current month and year
+        document.getElementById('incomeMonth').value = currentMonth;
+        document.getElementById('incomeYear').value = currentYear;
+    });
+    
+    // Show update default salary modal
+    updateDefaultSalaryBtn.addEventListener('click', function() {
+        document.getElementById('defaultSalaryAmount').value = defaultSalary;
+        defaultSalaryModal.style.display = 'block';
+    });
+    
+    // Show edit income modal
+    function showEditIncomeModal(income) {
+        resetIncomeForm();
+        
+        // Set form values
+        document.getElementById('incomeId').value = income.id;
+        document.getElementById('incomeAmount').value = income.amount;
+        document.getElementById('incomeSource').value = income.source;
+        document.getElementById('incomeMonth').value = income.month;
+        document.getElementById('incomeYear').value = income.year;
+        document.getElementById('incomeDescription').value = income.description || '';
+        
+        // Update modal title
+        modalAction.textContent = 'Edit';
+        
+        // Show modal
+        incomeModal.style.display = 'block';
+    }
+    
+    // Show delete income modal
+    function showDeleteIncomeModal(income) {
+        currentIncomeId = income.id;
+        deleteConfirmModal.style.display = 'block';
+    }
+    
+    // Reset income form
+    function resetIncomeForm() {
+        incomeForm.reset();
+        document.getElementById('incomeId').value = '';
+    }
+    
+    // Close modals
+    closeModal.addEventListener('click', function() {
+        incomeModal.style.display = 'none';
+    });
+    
+    closeDefaultSalaryModal.addEventListener('click', function() {
+        defaultSalaryModal.style.display = 'none';
+    });
+    
+    cancelBtn.addEventListener('click', function() {
+        incomeModal.style.display = 'none';
+    });
+    
+    cancelDefaultSalaryBtn.addEventListener('click', function() {
+        defaultSalaryModal.style.display = 'none';
+    });
+    
+    cancelDeleteBtn.addEventListener('click', function() {
+        deleteConfirmModal.style.display = 'none';
+    });
+    
+    // Submit income form
+    incomeForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        // Get form values
+        const incomeId = document.getElementById('incomeId').value;
+        const amount = parseFloat(document.getElementById('incomeAmount').value);
+        const source = document.getElementById('incomeSource').value;
+        const month = parseInt(document.getElementById('incomeMonth').value);
+        const year = parseInt(document.getElementById('incomeYear').value);
+        const description = document.getElementById('incomeDescription').value;
+        
+        // Create data object
+        const data = {
+            amount: amount,
+            source: source,
+            month: month,
+            year: year,
+            description: description
+        };
+        
+        try {
+            let response;
+            
+            if (incomeId) {
+                // Update existing income
+                response = await fetch(`/api/income/${incomeId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                // Create new income
+                response = await fetch('/api/income', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+            }
+            
+            if (response.ok) {
+                // Hide modal
+                incomeModal.style.display = 'none';
+                
+                // Reload data
+                await loadIncomeData();
+            } else {
+                const errorData = await response.json();
+                alert('Error: ' + (errorData.error || 'Something went wrong'));
+            }
+        } catch (error) {
+            console.error('Error saving income:', error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+    
+    // Submit default salary form
+    defaultSalaryForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        // Get form value
+        const salary = parseFloat(document.getElementById('defaultSalaryAmount').value);
+        
+        try {
+            const response = await fetch('/api/user/update-default-salary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ salary: salary })
+            });
+            
+            if (response.ok) {
+                // Update local value
+                defaultSalary = salary;
+                
+                // Update display
+                document.getElementById('defaultSalary').textContent = `₹${salary.toFixed(2)}`;
+                
+                // Update chart
+                updateIncomeChart();
+                
+                // Hide modal
+                defaultSalaryModal.style.display = 'none';
+            } else {
+                const errorData = await response.json();
+                alert('Error: ' + (errorData.error || 'Something went wrong'));
+            }
+        } catch (error) {
+            console.error('Error updating default salary:', error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+    
+    // Confirm delete income
+    confirmDeleteBtn.addEventListener('click', async function() {
+        if (!currentIncomeId) return;
+        
+        try {
+            const response = await fetch(`/api/income/${currentIncomeId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                // Hide modal
+                deleteConfirmModal.style.display = 'none';
+                
+                // Reload data
+                await loadIncomeData();
+            } else {
+                const errorData = await response.json();
+                alert('Error: ' + (errorData.error || 'Something went wrong'));
+            }
+        } catch (error) {
+            console.error('Error deleting income:', error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === incomeModal) {
+            incomeModal.style.display = 'none';
+        } else if (event.target === defaultSalaryModal) {
+            defaultSalaryModal.style.display = 'none';
+        } else if (event.target === deleteConfirmModal) {
+            deleteConfirmModal.style.display = 'none';
+        }
+    });
+    
+    // Initialize page
+    initPage();
+});
+</script>
+{% endblock %}
+ 

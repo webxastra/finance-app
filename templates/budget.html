@@ -1,0 +1,770 @@
+{% extends "layout.html" %}
+
+{% block title %}Budget Planner - FinancePro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1><i class="fas fa-wallet"></i> Monthly Budget Planning</h1>
+    </div>
+
+    <!-- Loading spinner while data is being fetched -->
+    <div id="loading" class="data-message">
+        <div class="loading-spinner"></div>
+        Loading budget data...
+    </div>
+
+    <div id="budgetContent" style="display: none;">
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-money-bill-wave"></i> Income</h2>
+            <div class="income-card">
+                <div class="income-item">
+                    <h3 class="income-title">Salary</h3>
+                    <p class="income-description">Your monthly salary income.</p>
+                    <div class="income-amount" id="salaryAmount">₹0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-receipt"></i> Expenses</h2>
+            <div id="expenses-grid" class="expenses-grid">
+                <!-- Expenses will be populated here -->
+                <div id="noExpensesMessage" class="no-expenses-message" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    No expenses found. Add some expenses from the Balance page.
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-piggy-bank"></i> Savings</h2>
+            <div id="savings-container" class="savings-container">
+                <!-- Savings items will be displayed here -->
+                <div id="noSavingsMessage" class="no-savings-message" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    No savings goals added yet.
+                </div>
+            </div>
+            <button id="addSavingsBtn" class="action-button">
+                <i class="fas fa-plus"></i> Add Savings Goal
+            </button>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-chart-pie"></i> Budget Summary</h2>
+            <div class="budget-summary-container">
+                <div class="budget-summary-card income-summary">
+                    <h3 class="summary-card-title">Total Income</h3>
+                    <div class="summary-card-amount" id="totalIncome">₹0</div>
+                </div>
+                <div class="budget-summary-card expenses-summary">
+                    <h3 class="summary-card-title">Total Expenses</h3>
+                    <div class="summary-card-amount" id="totalExpenses">₹0</div>
+                </div>
+                <div class="budget-summary-card balance-summary">
+                    <h3 class="summary-card-title">Remaining Balance</h3>
+                    <div class="summary-card-amount" id="remainingBalance">₹0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2 class="section-heading"><i class="fas fa-lightbulb"></i> Budgeting Tips</h2>
+            <ul class="tips-list">
+                <li>Track all your expenses monthly to understand your spending patterns.</li>
+                <li>Follow the 50/30/20 rule: 50% for necessities, 30% for wants, and 20% for savings.</li>
+                <li>Plan for your savings first, before spending on non-essential items.</li>
+                <li>Keep an emergency fund (3-6 months of expenses) for unexpected situations.</li>
+                <li>Review and adjust your budget regularly to stay on track with your financial goals.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Add Savings Modal -->
+<div id="savingsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2 class="modal-title"><i class="fas fa-piggy-bank"></i> Add Savings Goal</h2>
+        <form id="savingsForm">
+            <div class="form-group">
+                <label for="savingsGoal">Goal Name</label>
+                <input type="text" id="savingsGoal" name="savingsGoal" placeholder="e.g., Emergency Fund" required>
+            </div>
+            <div class="form-group">
+                <label for="savingsAmount">Amount (₹)</label>
+                <input type="number" id="savingsAmount" name="savingsAmount" placeholder="Enter amount" min="0" required>
+            </div>
+            <div class="form-group">
+                <label for="savingsDate">Date</label>
+                <input type="date" id="savingsDate" name="savingsDate" required>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="modal-cancel" id="cancelSavingsBtn">Cancel</button>
+                <button type="submit" class="modal-add">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
+        const loadingElement = document.getElementById('loading');
+        const budgetContent = document.getElementById('budgetContent');
+        const salaryAmount = document.getElementById('salaryAmount');
+        const expensesGrid = document.getElementById('expenses-grid');
+        const noExpensesMessage = document.getElementById('noExpensesMessage');
+        const savingsContainer = document.getElementById('savings-container');
+        const noSavingsMessage = document.getElementById('noSavingsMessage');
+        const addSavingsBtn = document.getElementById('addSavingsBtn');
+        const savingsModal = document.getElementById('savingsModal');
+        const cancelSavingsBtn = document.getElementById('cancelSavingsBtn');
+        const savingsForm = document.getElementById('savingsForm');
+        const savingsDate = document.getElementById('savingsDate');
+        const totalIncomeElement = document.getElementById('totalIncome');
+        const totalExpensesElement = document.getElementById('totalExpenses');
+        const remainingBalanceElement = document.getElementById('remainingBalance');
+        
+        // Set default date to today
+        savingsDate.valueAsDate = new Date();
+        
+        // Data storage
+        let userData = null;
+        let expenses = [];
+        let savings = [];
+        
+        // Function to get current user ID
+        function getCurrentUserId() {
+            try {
+                const id = parseInt("{{ current_user.id }}");
+                return isNaN(id) ? null : id;
+            } catch (error) {
+                console.error("Error getting current user ID:", error);
+                return null;
+            }
+        }
+        
+        // Initialize the page
+        loadBudgetData();
+        
+        // Listen for global month changes
+        document.addEventListener('monthChanged', function(e) {
+            // Reload budget data when month changes
+            loadBudgetData();
+        });
+        
+        // Event listeners
+        addSavingsBtn.addEventListener('click', function() {
+            savingsModal.style.display = 'block';
+        });
+        
+        cancelSavingsBtn.addEventListener('click', function() {
+            savingsModal.style.display = 'none';
+            savingsForm.reset();
+            savingsDate.valueAsDate = new Date();
+        });
+        
+        savingsForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            // Get form values
+            const formData = {
+                name: document.getElementById('savingsGoal').value,
+                target_amount: parseFloat(document.getElementById('savingsAmount').value),
+                current_amount: 0,
+                target_date: document.getElementById('savingsDate').value
+            };
+            
+            try {
+                const response = await fetch('/api/savings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Add new saving to the list
+                    savings.push(data.saving);
+                    
+                    // Update display
+                    updateSavingsDisplay();
+                    updateBudgetSummary();
+                    
+                    // Hide modal and reset form
+                    savingsModal.style.display = 'none';
+                    savingsForm.reset();
+                    savingsDate.valueAsDate = new Date();
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to add saving: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error adding saving:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            if (event.target === savingsModal) {
+                savingsModal.style.display = 'none';
+                savingsForm.reset();
+                savingsDate.valueAsDate = new Date();
+            }
+        });
+        
+        // Function to load all budget data
+        async function loadBudgetData() {
+            try {
+                // Show loading
+                loadingElement.style.display = 'flex';
+                loadingElement.style.flexDirection = 'column';
+                loadingElement.style.alignItems = 'center';
+                budgetContent.style.display = 'none';
+                
+                // Get user ID - use different approaches
+                const userId = getCurrentUserId();
+                
+                // Fetch user data - first try with specific ID if available
+                if (userId) {
+                    try {
+                        const userResponse = await fetch(`/api/users/${userId}`);
+                        if (userResponse.ok) {
+                            const userResult = await userResponse.json();
+                            userData = userResult.user;
+                        } else {
+                            // Try current user endpoint as fallback
+                            const currentUserResponse = await fetch('/api/user/current');
+                            if (currentUserResponse.ok) {
+                                const userData_basic = await currentUserResponse.json();
+                                userData = userData_basic.user;
+                            }
+                        }
+                    } catch (userError) {
+                        console.error("Error fetching user data with ID:", userError);
+                        // Try current user endpoint as fallback
+                        try {
+                            const currentUserResponse = await fetch('/api/user/current');
+                            if (currentUserResponse.ok) {
+                                const userData_basic = await currentUserResponse.json();
+                                userData = userData_basic.user;
+                            }
+                        } catch (e) {
+                            console.error("Error fetching current user data:", e);
+                        }
+                    }
+                } else {
+                    // No user ID, try current user endpoint
+                    try {
+                        const currentUserResponse = await fetch('/api/user/current');
+                        if (currentUserResponse.ok) {
+                            const userData_basic = await currentUserResponse.json();
+                            userData = userData_basic.user;
+                        }
+                    } catch (e) {
+                        console.error("Error fetching current user data:", e);
+                    }
+                }
+                
+                // If we still don't have user data, create a minimal default
+                if (!userData) {
+                    userData = { 
+                        salary: 0, 
+                        effectiveIncome: 0,
+                        name: 'User'
+                    };
+                    console.log("Using default user data");
+                }
+                
+                // Fetch current month income
+                let monthlyIncome = 0;
+                let defaultSalary = userData.salary || 0;
+                
+                try {
+                    const incomeResponse = await fetch('/api/income/current-month');
+                    
+                    if (incomeResponse.ok) {
+                        const incomeData = await incomeResponse.json();
+                        monthlyIncome = incomeData.total_income || 0;
+                        defaultSalary = incomeData.default_salary || defaultSalary;
+                        
+                        // Use actual income if available, otherwise use default salary
+                        const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : defaultSalary;
+                        
+                        // Update salary display with appropriate label
+                        salaryAmount.textContent = '₹' + effectiveIncome.toFixed(2);
+                        
+                        // Add a note about the source
+                        const incomeDescription = document.querySelector('.income-description');
+                        const existingNote = document.querySelector('.income-note');
+                        
+                        if (existingNote) {
+                            existingNote.remove(); // Remove any existing note
+                        }
+                        
+                        const incomeNote = document.createElement('div');
+                        incomeNote.className = 'income-note';
+                        
+                        if (monthlyIncome > 0) {
+                            incomeNote.textContent = '(Current month\'s recorded income)';
+                        } else {
+                            incomeNote.textContent = '(Using default salary - no income recorded this month)';
+                        }
+                        
+                        if (incomeDescription) {
+                            incomeDescription.parentNode.insertBefore(incomeNote, incomeDescription.nextSibling);
+                        }
+                        
+                        // Store the effective income for budget calculations
+                        userData.effectiveIncome = effectiveIncome;
+                    } else {
+                        // Fallback to user data salary if income fetch fails
+                        if (userData.salary) {
+                            salaryAmount.textContent = '₹' + userData.salary.toFixed(2);
+                            userData.effectiveIncome = userData.salary;
+                            
+                            // Add note about using default salary
+                            const incomeDescription = document.querySelector('.income-description');
+                            const existingNote = document.querySelector('.income-note');
+                            
+                            if (existingNote) {
+                                existingNote.remove(); // Remove any existing note
+                            }
+                            
+                            const incomeNote = document.createElement('div');
+                            incomeNote.className = 'income-note';
+                            incomeNote.textContent = '(Using default salary from profile)';
+                            
+                            if (incomeDescription) {
+                                incomeDescription.parentNode.insertBefore(incomeNote, incomeDescription.nextSibling);
+                            }
+                        } else {
+                            salaryAmount.textContent = '₹0.00';
+                            userData.effectiveIncome = 0;
+                        }
+                    }
+                } catch (incomeError) {
+                    console.error("Error fetching income data:", incomeError);
+                    // Fall back to user salary if available
+                    if (userData.salary) {
+                        salaryAmount.textContent = '₹' + userData.salary.toFixed(2);
+                        userData.effectiveIncome = userData.salary;
+                    } else {
+                        salaryAmount.textContent = '₹0.00';
+                        userData.effectiveIncome = 0;
+                    }
+                }
+                
+                // Fetch expense data
+                try {
+                    let expenseResponse;
+                    
+                    // Try user-specific endpoint if we have an ID
+                    if (userId) {
+                        expenseResponse = await fetch(`/api/expenses/user/${userId}`);
+                    } else {
+                        // Otherwise try general endpoint
+                        expenseResponse = await fetch('/api/expenses');
+                    }
+                    
+                    if (expenseResponse.ok) {
+                        const expenseResult = await expenseResponse.json();
+                        expenses = expenseResult.expenses || [];
+                    } else {
+                        // Try general endpoint as fallback if user-specific failed
+                        if (userId) {
+                            const fallbackResponse = await fetch('/api/expenses');
+                            if (fallbackResponse.ok) {
+                                const fallbackResult = await fallbackResponse.json();
+                                expenses = fallbackResult.expenses || [];
+                            }
+                        }
+                    }
+                } catch (expensesError) {
+                    console.error("Error fetching expenses:", expensesError);
+                    // Continue with empty expenses array
+                    expenses = [];
+                }
+                
+                // Fetch savings data
+                try {
+                    let savingsResponse;
+                    
+                    // Try user-specific endpoint if we have an ID
+                    if (userId) {
+                        savingsResponse = await fetch(`/api/savings/user/${userId}`);
+                    } else {
+                        // Otherwise try general endpoint
+                        savingsResponse = await fetch('/api/savings');
+                    }
+                    
+                    if (savingsResponse.ok) {
+                        const savingsResult = await savingsResponse.json();
+                        savings = savingsResult.savings || [];
+                    } else {
+                        // Try general endpoint as fallback if user-specific failed
+                        if (userId) {
+                            const fallbackResponse = await fetch('/api/savings');
+                            if (fallbackResponse.ok) {
+                                const fallbackResult = await fallbackResponse.json();
+                                savings = fallbackResult.savings || [];
+                            }
+                        }
+                    }
+                } catch (savingsError) {
+                    console.error("Error fetching savings:", savingsError);
+                    // Continue with empty savings array
+                    savings = [];
+                }
+                
+                // Update all displays with whatever data we have
+                updateExpensesDisplay();
+                updateSavingsDisplay();
+                updateBudgetSummary();
+                
+                // Hide loading, show content
+                loadingElement.style.display = 'none';
+                budgetContent.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading budget data:', error);
+                // Instead of showing an error, we'll show the budget content with empty data
+                
+                // Make sure we have at least empty user data
+                if (!userData) {
+                    userData = { effectiveIncome: 0, salary: 0 };
+                }
+                
+                // Make sure we have empty arrays for expenses and savings
+                expenses = expenses || [];
+                savings = savings || [];
+                
+                // Set salary display to 0 if not already set
+                if (!salaryAmount.textContent || salaryAmount.textContent === '₹--') {
+                    salaryAmount.textContent = '₹0.00';
+                }
+                
+                // Update all displays with empty data
+                updateExpensesDisplay();
+                updateSavingsDisplay();
+                updateBudgetSummary();
+                
+                // Hide loading, show content
+                loadingElement.style.display = 'none';
+                budgetContent.style.display = 'block';
+            }
+        }
+        
+        // Function to update expenses display
+        function updateExpensesDisplay() {
+            // Clear existing content
+            expensesGrid.innerHTML = '';
+            
+            // Make sure expenses is an array
+            if (!Array.isArray(expenses)) {
+                expenses = [];
+            }
+            
+            // Filter expenses based on the global month selector
+            let filteredExpenses = expenses;
+            
+            // Check if global month filter is available
+            if (window.appState && window.appState.selectedMonth) {
+                const selectedMonth = window.appState.selectedMonth;
+                
+                // Only filter if a specific month is selected (not 'all')
+                if (selectedMonth !== 'all') {
+                    const year = window.appState.currentYear;
+                    const monthNum = selectedMonth === 'current' ? 
+                        new Date().getMonth() + 1 : 
+                        parseInt(selectedMonth);
+                    
+                    // Create start and end dates for the selected month
+                    const startDate = new Date(year, monthNum - 1, 1);
+                    const endDate = new Date(year, monthNum, 0); // Last day of the month
+                    
+                    // Filter expenses by the selected month
+                    filteredExpenses = expenses.filter(expense => {
+                        if (!expense || !expense.date) return false;
+                        const expenseDate = new Date(expense.date);
+                        return expenseDate >= startDate && expenseDate <= endDate;
+                    });
+                }
+            }
+            
+            // Filter expenses to show only the last 5 for budget summary
+            const recentExpenses = [...filteredExpenses].sort((a, b) => {
+                return new Date(b.date) - new Date(a.date);
+            }).slice(0, 5);
+            
+            if (recentExpenses.length === 0) {
+                // Show no expenses message
+                noExpensesMessage.style.display = 'block';
+                expensesGrid.appendChild(noExpensesMessage);
+                return;
+            }
+            
+            // Hide no expenses message
+            noExpensesMessage.style.display = 'none';
+            
+            // Add expense cards
+            recentExpenses.forEach(expense => {
+                if (!expense) return; // Skip any null/undefined expenses
+                
+                const expenseCard = document.createElement('div');
+                expenseCard.className = 'expense-card';
+                
+                const expenseTitle = document.createElement('h3');
+                expenseTitle.className = 'expense-title';
+                expenseTitle.textContent = expense.category || 'Uncategorized';
+                
+                const expenseAmount = document.createElement('div');
+                expenseAmount.className = 'expense-amount';
+                expenseAmount.textContent = '₹' + (expense.amount || 0).toFixed(2);
+                
+                const expenseDate = document.createElement('div');
+                expenseDate.className = 'expense-date';
+                
+                let dateText = 'Date: Unknown';
+                if (expense.date) {
+                    try {
+                        const dateObj = new Date(expense.date);
+                        dateText = 'Date: ' + dateObj.toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        });
+                    } catch (e) {
+                        console.error("Error formatting date:", e);
+                    }
+                }
+                expenseDate.textContent = dateText;
+                
+                expenseCard.appendChild(expenseTitle);
+                expenseCard.appendChild(expenseAmount);
+                expenseCard.appendChild(expenseDate);
+                
+                expensesGrid.appendChild(expenseCard);
+            });
+        }
+        
+        // Function to update savings display
+        function updateSavingsDisplay() {
+            // Clear existing content
+            savingsContainer.innerHTML = '';
+            
+            // Make sure savings is an array
+            if (!Array.isArray(savings)) {
+                savings = [];
+            }
+            
+            if (savings.length === 0) {
+                // Show no savings message
+                noSavingsMessage.style.display = 'block';
+                savingsContainer.appendChild(noSavingsMessage);
+                return;
+            }
+            
+            // Hide no savings message
+            noSavingsMessage.style.display = 'none';
+            
+            // Add saving cards
+            savings.forEach(saving => {
+                if (!saving) return; // Skip any null/undefined savings
+                
+                const savingCard = document.createElement('div');
+                savingCard.className = 'saving-card';
+                savingCard.dataset.id = saving.id || saving._id || ''; // Handle both formats
+                
+                const savingTitle = document.createElement('h3');
+                savingTitle.className = 'saving-title';
+                savingTitle.textContent = saving.name || saving.goal || 'Unnamed Goal'; // Handle both formats
+                
+                const savingDetails = document.createElement('div');
+                savingDetails.className = 'saving-details';
+                
+                const savingAmount = document.createElement('div');
+                savingAmount.className = 'saving-amount';
+                const amount = saving.current_amount || saving.amount || 0; // Handle both formats
+                savingAmount.textContent = `Amount: ₹${parseFloat(amount).toFixed(2)}`;
+                
+                const savingDate = document.createElement('div');
+                savingDate.className = 'saving-date';
+                const dateValue = saving.target_date || saving.date;
+                if (dateValue) {
+                    try {
+                        const dateObj = new Date(dateValue);
+                        savingDate.textContent = `Target: ${dateObj.toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        })}`;
+                    } catch (e) {
+                        console.error("Error formatting saving date:", e);
+                        savingDate.textContent = "Target: Unknown date";
+                    }
+                }
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'saving-delete';
+                deleteButton.innerHTML = '×';
+                deleteButton.dataset.id = saving.id || saving._id || ''; // Handle both formats
+                deleteButton.addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to delete this savings goal?')) {
+                        await deleteSavingsGoal(saving.id || saving._id || '');
+                    }
+                });
+                
+                savingDetails.appendChild(savingAmount);
+                if (dateValue) {
+                    savingDetails.appendChild(savingDate);
+                }
+                
+                savingCard.appendChild(savingTitle);
+                savingCard.appendChild(savingDetails);
+                savingCard.appendChild(deleteButton);
+                
+                savingsContainer.appendChild(savingCard);
+            });
+        }
+        
+        // Function to delete a savings goal
+        async function deleteSavingsGoal(savingId) {
+            if (!savingId) {
+                console.error("Cannot delete savings goal: No ID provided");
+                return;
+            }
+            
+            try {
+                // Use the API endpoint for deleting savings
+                const response = await fetch(`/api/savings/${savingId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Remove saving from our list
+                    const index = savings.findIndex(saving => 
+                        (saving && (saving.id === savingId || saving._id === savingId))
+                    );
+                    if (index !== -1) {
+                        savings.splice(index, 1);
+                    }
+                    
+                    // Update display
+                    updateSavingsDisplay();
+                    updateBudgetSummary();
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to delete saving: ' + (errorData.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting saving:', error);
+                alert('An error occurred. Please try again.');
+            }
+        }
+        
+        // Function to update budget summary
+        function updateBudgetSummary() {
+            // Make sure we have userData object
+            if (!userData) {
+                userData = { effectiveIncome: 0 };
+            }
+            
+            // Calculate total income (use effective income)
+            const totalIncome = userData.effectiveIncome || 0;
+            
+            // Make sure expenses is an array
+            if (!Array.isArray(expenses)) {
+                expenses = [];
+            }
+            
+            // Filter expenses based on the global month selector
+            let filteredExpenses = expenses;
+            
+            // Check if global month filter is available
+            if (window.appState && window.appState.selectedMonth) {
+                const selectedMonth = window.appState.selectedMonth;
+                
+                // Only filter if a specific month is selected (not 'all')
+                if (selectedMonth !== 'all') {
+                    const year = window.appState.currentYear;
+                    const monthNum = selectedMonth === 'current' ? 
+                        new Date().getMonth() + 1 : 
+                        parseInt(selectedMonth);
+                    
+                    // Create start and end dates for the selected month
+                    const startDate = new Date(year, monthNum - 1, 1);
+                    const endDate = new Date(year, monthNum, 0); // Last day of the month
+                    
+                    // Filter expenses by the selected month
+                    filteredExpenses = expenses.filter(expense => {
+                        if (!expense || !expense.date) return false;
+                        const expenseDate = new Date(expense.date);
+                        return expenseDate >= startDate && expenseDate <= endDate;
+                    });
+                }
+            } else {
+                // If no global month filter, fall back to current month filtering
+                const now = new Date();
+                const currentMonth = now.getMonth() + 1; // JS months are 0-indexed
+                const currentYear = now.getFullYear();
+                
+                // Filter expenses for current month
+                filteredExpenses = expenses.filter(expense => {
+                    if (!expense || !expense.date) return false;
+                    
+                    try {
+                        const expenseDate = new Date(expense.date);
+                        return expenseDate.getMonth() + 1 === currentMonth && 
+                               expenseDate.getFullYear() === currentYear;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+            }
+            
+            const totalExpenses = filteredExpenses.reduce((sum, expense) => 
+                sum + (expense ? (expense.amount || 0) : 0), 0);
+            
+            // Make sure savings is an array
+            if (!Array.isArray(savings)) {
+                savings = [];
+            }
+            
+            // Calculate total savings allocation for this month
+            // (We'll just count 10% of target amount as monthly allocation for simplicity)
+            const monthlySavingsAllocation = savings.reduce((sum, saving) => {
+                if (!saving) return sum;
+                const targetAmount = saving.target_amount || 0;
+                return sum + (targetAmount * 0.1);
+            }, 0);
+            
+            // Calculate remaining balance
+            const remainingBalance = totalIncome - totalExpenses - monthlySavingsAllocation;
+            
+            // Update display
+            totalIncomeElement.textContent = '₹' + totalIncome.toFixed(2);
+            totalExpensesElement.textContent = '₹' + totalExpenses.toFixed(2);
+            remainingBalanceElement.textContent = '₹' + remainingBalance.toFixed(2);
+            
+            // Add color class based on remaining balance
+            if (remainingBalance > 0) {
+                remainingBalanceElement.className = 'summary-card-amount positive';
+            } else if (remainingBalance < 0) {
+                remainingBalanceElement.className = 'summary-card-amount negative';
+            } else {
+                remainingBalanceElement.className = 'summary-card-amount';
+            }
+        }
+    });
+</script>
+{% endblock %} 
