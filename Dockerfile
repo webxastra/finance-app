@@ -16,16 +16,22 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create instance directory for logs and data
 RUN mkdir -p instance/logs instance/ai
 
-# Create NLTK data directory and ensure proper permissions
-RUN mkdir -p /app/nltk_data \
-    && python -c "import nltk; nltk.download('stopwords', download_dir='/app/nltk_data'); nltk.download('wordnet', download_dir='/app/nltk_data'); nltk.download('omw-1.4', download_dir='/app/nltk_data'); nltk.download('punkt', download_dir='/app/nltk_data')" \
-    && chmod -R 777 /app/nltk_data
-
-# Verify NLTK data
-RUN python -c "import nltk; nltk.data.path.append('/app/nltk_data'); print('NLTK data path:', nltk.data.path); from nltk.corpus import stopwords; print('Stopwords available:', len(stopwords.words('english')) > 0)"
+# Create NLTK data directory
+RUN mkdir -p /app/nltk_data && chmod -R 777 /app/nltk_data
 
 # Copy application code
 COPY . .
+
+# Make setup.py executable
+RUN chmod +x /app/ai_modules/expense_categorizer/setup.py
+
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+echo "Running NLTK setup..."\n\
+python /app/ai_modules/expense_categorizer/setup.py\n\
+echo "Starting Gunicorn server..."\n\
+exec gunicorn --bind 0.0.0.0:5000 "app:create_app()" --workers 3' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
 
 # Create a health check script
 RUN echo '#!/bin/bash\n\
@@ -45,5 +51,5 @@ ENV FLASK_DEBUG=0
 ENV PYTHONUNBUFFERED=1
 ENV NLTK_DATA=/app/nltk_data
 
-# Run the application with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:create_app()", "--workers", "3"] 
+# Run the application with our entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"] 

@@ -60,7 +60,7 @@ case "$1" in
     start)
         echo -e "${GREEN}Starting Finance App services...${NC}"
         docker-compose up -d
-        echo -e "${GREEN}Services started. Access the application at http://localhost:5000${NC}"
+        echo -e "${GREEN}Services started. Access the application at http://localhost:8000${NC}"
         ;;
     
     stop)
@@ -73,7 +73,7 @@ case "$1" in
         echo -e "${YELLOW}Restarting Finance App services...${NC}"
         docker-compose down
         docker-compose up -d
-        echo -e "${GREEN}Services restarted. Access the application at http://localhost:5000${NC}"
+        echo -e "${GREEN}Services restarted. Access the application at http://localhost:8000${NC}"
         ;;
         
     status)
@@ -106,7 +106,7 @@ case "$1" in
         
     build)
         echo -e "${GREEN}Rebuilding Finance App containers...${NC}"
-        docker-compose build
+        docker-compose build --no-cache
         echo -e "${GREEN}Build complete. Use './docker-manage.sh start' to start the services.${NC}"
         ;;
         
@@ -116,7 +116,7 @@ case "$1" in
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo -e "${YELLOW}Removing all containers and volumes...${NC}"
-            docker-compose down -v
+            docker-compose down -v --remove-orphans
             echo -e "${GREEN}Cleanup complete.${NC}"
         else
             echo -e "${BLUE}Operation cancelled.${NC}"
@@ -126,6 +126,10 @@ case "$1" in
     backup)
         BACKUP_FILE="financeapp_backup_$(date +%Y%m%d_%H%M%S).sql"
         echo -e "${BLUE}Backing up database to ${BACKUP_FILE}...${NC}"
+        
+        # Make sure backups directory exists
+        mkdir -p backups
+        
         docker-compose exec -T finance-app-db pg_dump -U ${DB_USER:-postgres} -d ${DB_NAME:-financeapp} > "backups/${BACKUP_FILE}"
         
         if [ $? -eq 0 ]; then

@@ -359,20 +359,31 @@ def pip_install_nltk_data():
         return False
 
 def reload_nltk_modules():
-    """Reload NLTK modules to ensure they use updated paths"""
+    """Ensure NLTK modules are correctly initialized with updated paths"""
     try:
-        # Reload key NLTK modules
-        if 'nltk.corpus' in sys.modules:
-            importlib.reload(sys.modules['nltk.corpus'])
-        if 'nltk.tokenize' in sys.modules:
-            importlib.reload(sys.modules['nltk.tokenize'])
-        if 'nltk.stem' in sys.modules:
-            importlib.reload(sys.modules['nltk.stem'])
+        # Instead of reloading, just import the modules to verify they work
+        import nltk.corpus
+        import nltk.tokenize
+        import nltk.stem
         
-        logger.info("Successfully reloaded NLTK modules")
-        return True
+        # Simple verification that critical modules are accessible
+        from nltk.corpus import wordnet, stopwords
+        from nltk.tokenize import word_tokenize
+        from nltk.stem import WordNetLemmatizer
+        
+        # Verify they actually work with minimal examples
+        try:
+            stopwords.words('english')[:5]
+            word_tokenize("This is a test")
+            lemmatizer = WordNetLemmatizer()
+            lemmatizer.lemmatize("running")
+            logger.info("NLTK modules verified as working correctly")
+            return True
+        except Exception as e:
+            logger.error(f"NLTK modules imported but failed verification: {str(e)}")
+            return False
     except Exception as e:
-        logger.error(f"Failed to reload NLTK modules: {str(e)}")
+        logger.error(f"Failed to import NLTK modules: {str(e)}")
         return False
 
 def main():

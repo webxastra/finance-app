@@ -267,12 +267,10 @@ def ensure_nltk_resources():
     
     # Reload all modules that use NLTK resources to ensure they use the new paths
     try:
-        from importlib import reload
         import nltk.corpus
-        reload(nltk.corpus)
-        logger.info("Reloaded NLTK corpus module")
+        logger.info("NLTK corpus module is available")
     except Exception as e:
-        logger.error(f"Failed to reload NLTK modules: {str(e)}")
+        logger.error(f"Error importing NLTK modules: {str(e)}")
 
 # Call the function to ensure resources
 ensure_nltk_resources()

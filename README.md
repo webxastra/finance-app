@@ -71,6 +71,14 @@ For containerized deployment:
 docker-compose up -d
 ```
 
+After deployment, access the application in your web browser at:
+
+```
+http://localhost:8000
+```
+
+The PostgreSQL database will be accessible on port 5433.
+
 ## 🏗️ Project Structure
 
 ```
