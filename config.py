@@ -6,8 +6,8 @@ This module defines configuration settings for different environments:
 - Testing: Used for automated tests with a separate test database
 - Production: Optimized for deployment with secure settings
 
-The configuration class to use is selected based on the FLASK_ENV environment 
-variable. If not specified, it defaults to 'development'.
+The configuration class to use is selected based on the FLASK_DEBUG environment 
+variable. If not specified, it defaults to '0' (production mode).
 
 Each configuration class inherits from BaseConfig to ensure consistent
 shared settings across all environments.
@@ -28,7 +28,6 @@ class BaseConfig:
         SECRET_KEY (str): Secret key for securing sessions and tokens
         SQLALCHEMY_TRACK_MODIFICATIONS (bool): Disable SQLAlchemy modification tracking
         EXPRESS_API_URL (str): URL for the Express API service
-        SQLALCHEMY_ENGINE_OPTIONS (dict): Options for SQLAlchemy engine
     """
     
     # Flask settings
@@ -40,9 +39,8 @@ class BaseConfig:
     # API endpoints
     EXPRESS_API_URL = os.environ.get('EXPRESS_API_URL', 'http://localhost:8000/api')
 
-    # SQLAlchemy connection settings
+    # Common SQLAlchemy connection settings
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'connect_args': {'check_same_thread': False},
         'pool_pre_ping': True
     }
 
@@ -65,6 +63,14 @@ class DevelopmentConfig(BaseConfig):
     
     # Enable SQL query logging in development
     SQLALCHEMY_ECHO = True
+    
+    def __init__(self):
+        """Initialize development-specific settings."""
+        super().__init__()
+        # Add SQLite-specific options if using SQLite
+        if 'sqlite' in self.SQLALCHEMY_DATABASE_URI:
+            self.SQLALCHEMY_ENGINE_OPTIONS = dict(self.SQLALCHEMY_ENGINE_OPTIONS)
+            self.SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {'check_same_thread': False}
 
 
 class TestingConfig(BaseConfig):
@@ -87,6 +93,14 @@ class TestingConfig(BaseConfig):
     
     # Disable CSRF protection in testing for API testing ease
     WTF_CSRF_ENABLED = False
+    
+    def __init__(self):
+        """Initialize testing-specific settings."""
+        super().__init__()
+        # Add SQLite-specific options if using SQLite
+        if 'sqlite' in self.SQLALCHEMY_DATABASE_URI:
+            self.SQLALCHEMY_ENGINE_OPTIONS = dict(self.SQLALCHEMY_ENGINE_OPTIONS)
+            self.SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {'check_same_thread': False}
 
 
 class ProductionConfig(BaseConfig):
@@ -111,6 +125,15 @@ class ProductionConfig(BaseConfig):
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
+    
+    def __init__(self):
+        """Initialize production-specific settings."""
+        super().__init__()
+        # Add PostgreSQL-specific options for production
+        if self.SQLALCHEMY_DATABASE_URI and 'postgresql' in self.SQLALCHEMY_DATABASE_URI:
+            self.SQLALCHEMY_ENGINE_OPTIONS = dict(self.SQLALCHEMY_ENGINE_OPTIONS)
+            self.SQLALCHEMY_ENGINE_OPTIONS['pool_size'] = 10
+            self.SQLALCHEMY_ENGINE_OPTIONS['max_overflow'] = 20
 
 
 # Configuration dictionary mapping environment names to config classes
@@ -118,7 +141,7 @@ config: Dict[str, Any] = {
     'development': DevelopmentConfig,
     'testing': TestingConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'default': ProductionConfig
 }
 
 
@@ -126,11 +149,18 @@ def get_config():
     """
     Get the appropriate configuration class based on environment.
     
-    Determines which configuration class to use based on the FLASK_ENV
-    environment variable. If not set or not valid, defaults to 'development'.
+    Determines which configuration class to use based on the FLASK_DEBUG
+    environment variable. If set to '1', uses development configuration.
+    If set to '0' or not set, uses production configuration.
     
     Returns:
         config class: The configuration class for the current environment
     """
-    flask_env = os.environ.get('FLASK_ENV', 'development')
-    return config.get(flask_env, config['default'])
+    flask_debug = os.environ.get('FLASK_DEBUG', '0')
+    
+    if flask_debug == '1':
+        return config['development']()
+    elif os.environ.get('TESTING', '').lower() == 'true':
+        return config['testing']()
+    else:
+        return config['production']()

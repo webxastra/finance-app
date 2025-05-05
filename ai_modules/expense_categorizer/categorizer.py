@@ -69,9 +69,31 @@ def _get_db_correction(self, description, amount=None):
 # Set up custom NLTK data directory to avoid permission issues
 def setup_nltk_data_dir():
     """Set up a custom NLTK data directory in the user's home directory"""
+    # First check environment variable
+    nltk_data_env = os.environ.get('NLTK_DATA')
+    if nltk_data_env and os.path.exists(nltk_data_env):
+        logger.info(f"Using NLTK_DATA env variable: {nltk_data_env}")
+        # Clear existing paths and set only this one
+        nltk.data.path = [nltk_data_env]
+        return nltk_data_env, None
+    
     # Add all possible NLTK data directories to the path for comprehensive search
     home_dir = str(Path.home())
     nltk_data_dir = os.path.join(home_dir, 'nltk_data')
+    
+    # Check for docker-specific paths
+    docker_paths = [
+        '/app/nltk_data',
+        '/usr/local/share/nltk_data',
+        '/usr/share/nltk_data'
+    ]
+    
+    # Try docker paths first
+    for path in docker_paths:
+        if os.path.exists(path):
+            logger.info(f"Using existing Docker NLTK data path: {path}")
+            nltk.data.path = [path]
+            return path, None
     
     # Create directory if it doesn't exist
     if not os.path.exists(nltk_data_dir):

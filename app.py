@@ -93,7 +93,7 @@ def create_app(config_name=None):
     
     Args:
         config_name (str, optional): Name of the configuration to use.
-            If None, it will be determined from the FLASK_ENV environment variable.
+            If None, it will be determined from the FLASK_DEBUG environment variable.
             Defaults to None.
             
     Returns:
@@ -102,7 +102,7 @@ def create_app(config_name=None):
     app = Flask(__name__)
     
     # Load appropriate configuration based on environment
-    config_name = config_name or os.environ.get('FLASK_ENV', 'development')
+    config_name = config_name or os.environ.get('FLASK_DEBUG', '0')
     app.config.from_object(get_config())
     
     # Configure logging
@@ -150,6 +150,19 @@ def create_app(config_name=None):
             User: The user object if found, None otherwise
         """
         return User.query.get(int(user_id))
+    
+    # Register health check endpoint for Docker
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint for Docker container monitoring"""
+        try:
+            # Check database connection
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
+            return jsonify({"status": "healthy", "database": "connected"}), 200
+        except Exception as e:
+            app.logger.error(f"Health check failed: {str(e)}")
+            return jsonify({"status": "unhealthy", "error": str(e)}), 500
     
     # Register error handlers
     register_error_handlers(app)

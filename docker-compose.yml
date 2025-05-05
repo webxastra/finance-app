@@ -2,18 +2,22 @@ version: '3.8'
 
 services:
   finance-app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: finance-app-web
     ports:
-      - "5000:5000"
+      - "8000:5000"
     volumes:
-      - ./instance:/app/instance
-      - ./static:/app/static  # For persistent static files
+      - finance-app-data:/app/instance
+      - finance-app-static:/app/static
+      - nltk-data:/app/nltk_data
     environment:
       - FLASK_APP=app.py
-      - FLASK_ENV=production
+      - FLASK_DEBUG=0
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@finance-app-db:5432/${DB_NAME:-financeapp}
+      - NLTK_DATA=/app/nltk_data
     depends_on:
       finance-app-db:
         condition: service_healthy
@@ -42,7 +46,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
       - POSTGRES_DB=${DB_NAME:-financeapp}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: unless-stopped
     networks:
       - finance-app-network
@@ -64,4 +68,10 @@ networks:
 
 volumes:
   finance-app-postgres-data:
-    name: finance-app-postgres-data 
+    name: finance-app-postgres-data
+  finance-app-data:
+    name: finance-app-data
+  finance-app-static:
+    name: finance-app-static
+  nltk-data:
+    name: finance-app-nltk-data 
