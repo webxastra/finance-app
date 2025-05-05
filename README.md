@@ -79,6 +79,22 @@ http://localhost:8000
 
 The PostgreSQL database will be accessible on port 5433.
 
+### Docker Commands Reference
+
+```bash
+# Start the application
+docker-compose up -d
+
+# Stop the application
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Rebuild after changes
+docker-compose build
+```
+
 ## 🏗️ Project Structure
 
 ```
